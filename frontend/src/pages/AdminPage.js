@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '../components/Layout';
 import { useTranslation } from 'react-i18next';
-import { UserGear, Users, Scan, ChartPie } from '@phosphor-icons/react';
+import { UserGear, Users, Scan, ChartPie, DownloadSimple } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { format } from 'date-fns';
@@ -14,6 +14,7 @@ export const AdminPage = () => {
   const [detections, setDetections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [downloading, setDownloading] = useState(false);
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -37,6 +38,30 @@ export const AdminPage = () => {
     }
   };
 
+  const handleDownloadImages = async () => {
+    setDownloading(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/admin/download-images`, {
+        withCredentials: true,
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `sugarcane_images_${new Date().toISOString().slice(0,10)}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert(error.response?.status === 404 ? 'No images to download yet.' : 'Download failed. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+
   const getSeverityColor = (severity) => {
     switch (severity) {
       case 'high': return 'bg-[#FDF0EF] text-[#D9534F]';
@@ -56,6 +81,28 @@ export const AdminPage = () => {
           <p className="text-base text-[#5C6B61] mb-8">
             Manage users and view system analytics
           </p>
+
+          {/* Download All Images Button */}
+          <div className="mb-6">
+            <button
+              data-testid="download-images-btn"
+              onClick={handleDownloadImages}
+              disabled={downloading}
+              className="inline-flex items-center space-x-2 bg-[#2D5A27] hover:bg-[#24481F] text-white px-5 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg active:scale-95"
+            >
+              {downloading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white"></div>
+                  <span>Preparing ZIP...</span>
+                </>
+              ) : (
+                <>
+                  <DownloadSimple size={20} weight="bold" />
+                  <span>Download All Images (ZIP)</span>
+                </>
+              )}
+            </button>
+          </div>
 
           {loading ? (
             <div className="text-center py-12">

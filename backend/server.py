@@ -1,5 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -16,6 +16,7 @@ import requests
 import base64
 from PIL import Image
 import io
+import zipfile
 import torch
 from ultralytics import YOLO
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
@@ -781,6 +782,41 @@ async def get_stats(current_user: dict = Depends(get_current_user)):
         "total_scans": total_scans,
         "disease_distribution": disease_stats
     }
+
+@api_router.get("/admin/download-images")
+async def download_all_images(current_user: dict = Depends(get_current_user)):
+    """Admin only: Download all uploaded images as a ZIP file"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    detections = await db.detections.find({}, {"_id": 0, "image_path": 1, "disease": 1, "username": 1, "created_at": 1}).to_list(5000)
+    
+    if not detections:
+        raise HTTPException(status_code=404, detail="No images found")
+    
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for det in detections:
+            try:
+                image_data, content_type = get_object(det["image_path"])
+                # Organize by disease folder: disease_name/username_datetime.ext
+                disease_folder = det.get("disease", "Unknown").replace(" ", "_")
+                username = det.get("username", "unknown")
+                timestamp = det.get("created_at", "")[:19].replace(":", "-")
+                ext = det["image_path"].rsplit(".", 1)[-1] if "." in det["image_path"] else "jpg"
+                filename = f"{disease_folder}/{username}_{timestamp}.{ext}"
+                zf.writestr(filename, image_data)
+            except Exception as e:
+                logging.warning(f"Failed to fetch image {det['image_path']}: {e}")
+                continue
+    
+    zip_buffer.seek(0)
+    timestamp_now = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=sugarcane_images_{timestamp_now}.zip"}
+    )
 
 app.include_router(api_router)
 
