@@ -16,6 +16,8 @@ import requests
 import base64
 from PIL import Image
 import io
+import torch
+from ultralytics import YOLO
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 
 ROOT_DIR = Path(__file__).parent
@@ -35,6 +37,16 @@ storage_key = None
 # JWT Configuration
 JWT_SECRET = os.environ.get("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
+
+# Load YOLO model
+model_path = ROOT_DIR / "models" / "best2.pt"
+yolo_model = None
+
+try:
+    yolo_model = YOLO(str(model_path))
+    logging.info("YOLO model loaded successfully")
+except Exception as e:
+    logging.error(f"Failed to load YOLO model: {e}")
 
 # Disease Information Database (18 classes)
 DISEASE_INFO = {
@@ -239,8 +251,65 @@ async def get_current_user(request: Request) -> dict:
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-# Note: YOLO model removed for cloud deployment compatibility
-# Now using Gemini Vision API exclusively for disease detection
+async def detect_disease_yolo(image_bytes: bytes) -> Dict[str, Any]:
+    """Detect disease using custom trained YOLO model"""
+    if not yolo_model:
+        return {"disease": "Unknown", "confidence": 0, "severity": "unknown", "source": "yolo"}
+    
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        results = yolo_model(image)
+        
+        if results and len(results) > 0:
+            result = results[0]
+            if len(result.boxes) > 0:
+                box = result.boxes[0]
+                class_id = int(box.cls[0])
+                confidence = float(box.conf[0])
+                
+                # 18 disease classes
+                disease_names = [
+                    "Early Shoot Borer",
+                    "Grassy Shoot Disease",
+                    "Healthy",
+                    "Mites",
+                    "Mosaic",
+                    "Pokkah Boeng",
+                    "Red Rot",
+                    "Whiplash Smut",
+                    "Woolly Aphids",
+                    "Black Aphid",
+                    "Brown Rust",
+                    "Brown Spot",
+                    "Eye Spot",
+                    "Internode Borer",
+                    "Leaf Footed Bug",
+                    "Pyrilla",
+                    "Scale Insect",
+                    "Wilt"
+                ]
+                disease = disease_names[class_id] if class_id < len(disease_names) else "Unknown"
+                
+                if confidence > 0.7:
+                    severity = "high"
+                elif confidence > 0.4:
+                    severity = "medium"
+                else:
+                    severity = "low"
+                
+                return {
+                    "disease": disease,
+                    "confidence": round(confidence * 100, 2),
+                    "severity": severity,
+                    "source": "yolo"
+                }
+        
+        return {"disease": "Healthy", "confidence": 95.0, "severity": "low", "source": "yolo"}
+    except Exception as e:
+        logging.error(f"YOLO detection error: {e}")
+        return {"disease": "Unknown", "confidence": 0, "severity": "unknown", "source": "yolo"}
+
+# Note: Dual-model approach - YOLO (specialized) + Gemini Vision (general AI)
 
 async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
     """Detect disease using Gemini Vision"""
@@ -287,9 +356,10 @@ Disease name MUST be exactly one of: Early Shoot Borer, Grassy Shoot Disease, He
         import json
         try:
             result = json.loads(response)
+            result["source"] = "gemini"
             return result
         except:
-            return {"disease": "Healthy", "confidence": 85.0, "severity": "low"}
+            return {"disease": "Healthy", "confidence": 85.0, "severity": "low", "source": "gemini"}
             
     except Exception as e:
         logging.error(f"Gemini detection error: {e}")
@@ -475,13 +545,55 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         
         storage_result = put_object(storage_path, image_bytes, file.content_type or "image/jpeg")
         
-        # Run AI detection using Gemini Vision API
-        detection_result = await detect_disease_gemini(image_bytes)
+        # Run BOTH models for comparison
+        yolo_result = await detect_disease_yolo(image_bytes)
+        gemini_result = await detect_disease_gemini(image_bytes)
         
-        # Use Gemini results
-        final_disease = detection_result["disease"]
-        final_confidence = detection_result["confidence"]
-        final_severity = detection_result["severity"]
+        # Smart prediction selection logic
+        # Priority: 1) Both agree -> use that, 2) YOLO is specialized -> prefer YOLO, 3) Higher confidence wins
+        final_disease = yolo_result["disease"]
+        final_confidence = yolo_result["confidence"]
+        final_severity = yolo_result["severity"]
+        model_used = "YOLO (Specialized)"
+        
+        # If both models agree, use that prediction
+        if yolo_result["disease"] == gemini_result["disease"]:
+            model_used = "Both Models Agree"
+            # Use average confidence when both agree
+            final_confidence = round((yolo_result["confidence"] + gemini_result["confidence"]) / 2, 2)
+        # If YOLO detected a disease and Gemini says healthy, trust YOLO (it's specialized)
+        elif yolo_result["disease"] != "Healthy" and gemini_result["disease"] == "Healthy":
+            final_disease = yolo_result["disease"]
+            final_confidence = yolo_result["confidence"]
+            final_severity = yolo_result["severity"]
+            model_used = "YOLO (Detected disease)"
+        # If Gemini detected a disease and YOLO says healthy, verify with confidence
+        elif yolo_result["disease"] == "Healthy" and gemini_result["disease"] != "Healthy":
+            if gemini_result["confidence"] > 70:  # High confidence from Gemini
+                final_disease = gemini_result["disease"]
+                final_confidence = gemini_result["confidence"]
+                final_severity = gemini_result["severity"]
+                model_used = "Gemini (High confidence)"
+            else:
+                # Trust YOLO for specialized detection
+                final_disease = yolo_result["disease"]
+                final_confidence = yolo_result["confidence"]
+                final_severity = yolo_result["severity"]
+                model_used = "YOLO (Specialized)"
+        # Both detected different diseases - use higher confidence
+        else:
+            if yolo_result["confidence"] >= gemini_result["confidence"]:
+                final_disease = yolo_result["disease"]
+                final_confidence = yolo_result["confidence"]
+                final_severity = yolo_result["severity"]
+                model_used = f"YOLO (Higher confidence: {yolo_result['confidence']}% vs {gemini_result['confidence']}%)"
+            else:
+                final_disease = gemini_result["disease"]
+                final_confidence = gemini_result["confidence"]
+                final_severity = gemini_result["severity"]
+                model_used = f"Gemini (Higher confidence: {gemini_result['confidence']}% vs {yolo_result['confidence']}%)"
+        
+        logging.info(f"Detection results - YOLO: {yolo_result['disease']} ({yolo_result['confidence']}%), Gemini: {gemini_result['disease']} ({gemini_result['confidence']}%), Final: {final_disease} ({model_used})")
         
         # Get disease info
         disease_info = DISEASE_INFO.get(final_disease, DISEASE_INFO["Healthy"])
