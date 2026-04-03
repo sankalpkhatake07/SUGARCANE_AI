@@ -545,55 +545,39 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         
         storage_result = put_object(storage_path, image_bytes, file.content_type or "image/jpeg")
         
-        # Run BOTH models for comparison
+        # Run BOTH models - use both predictions together
         yolo_result = await detect_disease_yolo(image_bytes)
         gemini_result = await detect_disease_gemini(image_bytes)
         
-        # Smart prediction selection logic
-        # Priority: 1) Both agree -> use that, 2) YOLO is specialized -> prefer YOLO, 3) Higher confidence wins
-        final_disease = yolo_result["disease"]
-        final_confidence = yolo_result["confidence"]
-        final_severity = yolo_result["severity"]
-        model_used = "YOLO (Specialized)"
-        
-        # If both models agree, use that prediction
+        # DUAL MODEL APPROACH - Use both predictions together
+        # If both agree, high confidence. If disagree, consider both predictions
         if yolo_result["disease"] == gemini_result["disease"]:
-            model_used = "Both Models Agree"
-            # Use average confidence when both agree
-            final_confidence = round((yolo_result["confidence"] + gemini_result["confidence"]) / 2, 2)
-        # If YOLO detected a disease and Gemini says healthy, trust YOLO (it's specialized)
-        elif yolo_result["disease"] != "Healthy" and gemini_result["disease"] == "Healthy":
+            # Both models agree - very confident!
             final_disease = yolo_result["disease"]
-            final_confidence = yolo_result["confidence"]
+            final_confidence = round((yolo_result["confidence"] + gemini_result["confidence"]) / 2, 2)
             final_severity = yolo_result["severity"]
-            model_used = "YOLO (Detected disease)"
-        # If Gemini detected a disease and YOLO says healthy, verify with confidence
-        elif yolo_result["disease"] == "Healthy" and gemini_result["disease"] != "Healthy":
-            if gemini_result["confidence"] > 70:  # High confidence from Gemini
-                final_disease = gemini_result["disease"]
-                final_confidence = gemini_result["confidence"]
-                final_severity = gemini_result["severity"]
-                model_used = "Gemini (High confidence)"
-            else:
-                # Trust YOLO for specialized detection
-                final_disease = yolo_result["disease"]
-                final_confidence = yolo_result["confidence"]
-                final_severity = yolo_result["severity"]
-                model_used = "YOLO (Specialized)"
-        # Both detected different diseases - use higher confidence
+            agreement = "Both models agree"
         else:
-            if yolo_result["confidence"] >= gemini_result["confidence"]:
+            # Models disagree - use weighted average based on both
+            # Combine confidences: YOLO weight 60%, Gemini weight 40%
+            yolo_weight = 0.6
+            gemini_weight = 0.4
+            
+            yolo_score = yolo_result["confidence"] * yolo_weight
+            gemini_score = gemini_result["confidence"] * gemini_weight
+            
+            if yolo_score >= gemini_score:
                 final_disease = yolo_result["disease"]
-                final_confidence = yolo_result["confidence"]
+                final_confidence = round((yolo_score + gemini_score), 2)
                 final_severity = yolo_result["severity"]
-                model_used = f"YOLO (Higher confidence: {yolo_result['confidence']}% vs {gemini_result['confidence']}%)"
+                agreement = f"Combined prediction (YOLO: {yolo_result['disease']} {yolo_result['confidence']}%, Gemini: {gemini_result['disease']} {gemini_result['confidence']}%)"
             else:
                 final_disease = gemini_result["disease"]
-                final_confidence = gemini_result["confidence"]
+                final_confidence = round((yolo_score + gemini_score), 2)
                 final_severity = gemini_result["severity"]
-                model_used = f"Gemini (Higher confidence: {gemini_result['confidence']}% vs {yolo_result['confidence']}%)"
+                agreement = f"Combined prediction (YOLO: {yolo_result['disease']} {yolo_result['confidence']}%, Gemini: {gemini_result['disease']} {gemini_result['confidence']}%)"
         
-        logging.info(f"Detection results - YOLO: {yolo_result['disease']} ({yolo_result['confidence']}%), Gemini: {gemini_result['disease']} ({gemini_result['confidence']}%), Final: {final_disease} ({model_used})")
+        logging.info(f"DUAL MODEL - YOLO: {yolo_result['disease']} ({yolo_result['confidence']}%), Gemini: {gemini_result['disease']} ({gemini_result['confidence']}%) => Final: {final_disease} ({final_confidence}%)")
         
         # Get disease info
         disease_info = DISEASE_INFO.get(final_disease, DISEASE_INFO["Healthy"])
@@ -612,7 +596,16 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
             "symptoms": disease_info["symptoms"],
             "causes": disease_info["causes"],
             "prevention": disease_info["prevention"],
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            # Store both model predictions for reference
+            "yolo_prediction": {
+                "disease": yolo_result["disease"],
+                "confidence": yolo_result["confidence"]
+            },
+            "gemini_prediction": {
+                "disease": gemini_result["disease"],
+                "confidence": gemini_result["confidence"]
+            }
         }
         
         await db.detections.insert_one(detection_doc)
