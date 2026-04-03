@@ -305,16 +305,34 @@ async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
         chat.with_model("gemini", "gemini-3.1-flash-preview").with_params()
         
         msg = UserMessage(
-            text="""Look at this sugarcane plant image. Identify any disease or pest problem you see.
+            text="""URGENT: Examine this sugarcane leaf VERY CAREFULLY for disease signs.
 
-If you see black whip-like structures = Whiplash Smut
-If you see brown spots = Brown Spot or Brown Rust  
-If you see insects = identify the insect type
-If everything looks green and healthy = Healthy
+🔍 CRITICAL INDICATORS TO CHECK:
 
-Return only JSON: {"disease": "DiseaseName", "confidence": 80, "severity": "medium"}
+1. **BROWN/ORANGE RUST** (MOST COMMON - Look closely!):
+   - ANY brown, orange, or rust-colored spots or pustules
+   - Small powdery bumps on leaves  
+   - Even FAINT orange/brown tint means Brown Rust!
+   - IF YOU SEE ANY BROWN/ORANGE = Say "Brown Rust" NOT "Healthy"!
 
-Use these exact names: Whiplash Smut, Red Rot, Brown Rust, Mosaic, Pokkah Boeng, Early Shoot Borer, Grassy Shoot Disease, Eye Spot, Brown Spot, Woolly Aphids, Black Aphid, Mites, Scale Insect, Pyrilla, Leaf Footed Bug, Internode Borer, Wilt, Healthy""",
+2. **Other Diseases**:
+   - Black whip = Whiplash Smut
+   - Yellow-green patches = Mosaic  
+   - Brown lesions with yellow borders = Brown Spot
+   - Red discoloration = Red Rot
+
+3. **Healthy ONLY if**:
+   - PERFECT vibrant green
+   - NO spots, marks, or discoloration AT ALL
+   - NO brown/orange/yellow anywhere
+
+⚠️ RULE: If unsure between disease and healthy → Choose the disease!
+
+NOW: Look at THIS image - do you see ANY brown, orange, or rust colored areas? Any spots at all?
+
+Return ONLY JSON: {"disease": "Brown Rust", "confidence": 85, "severity": "medium"}
+
+Exact names: Brown Rust, Red Rot, Whiplash Smut, Mosaic, Pokkah Boeng, Early Shoot Borer, Grassy Shoot Disease, Eye Spot, Brown Spot, Woolly Aphids, Black Aphid, Mites, Scale Insect, Pyrilla, Leaf Footed Bug, Internode Borer, Wilt, Healthy""",
             file_contents=[ImageContent(image_base64)]
         )
         
