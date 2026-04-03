@@ -296,7 +296,7 @@ async def detect_disease_yolo(image_bytes: bytes) -> Dict[str, Any]:
 # Note: Using Gemini Vision API exclusively for cloud deployment compatibility
 
 async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
-    """AI Detection: Using Claude Sonnet 4.5 Vision (most accurate)"""
+    """AI Detection: Using GPT-5.1 Vision (OpenAI recommended model)"""
     try:
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
         
@@ -304,59 +304,66 @@ async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
         chat = LlmChat(
             api_key=api_key, 
             session_id=f"detection-{uuid.uuid4()}", 
-            system_message="You are an expert agricultural pathologist with 25+ years specializing in sugarcane disease diagnosis. You have analyzed over 100,000 sugarcane disease cases."
+            system_message="You are a world-class agricultural disease expert specializing in sugarcane pathology with 30 years of field experience diagnosing over 500,000 cases."
         )
-        # Use Claude Sonnet 4.5 - most accurate vision model
-        chat.with_model("anthropic", "claude-sonnet-4-5-20250929")
+        # Use GPT-5.1 - OpenAI's recommended vision model
+        chat.with_model("openai", "gpt-5.1")
         
         msg = UserMessage(
-            text="""EXPERT DIAGNOSIS TASK: Analyze this sugarcane image for disease/pest detection.
+            text="""DISEASE DETECTION PROTOCOL:
 
-🔬 SYSTEMATIC EXAMINATION:
+You are examining a sugarcane plant image. Follow this systematic protocol:
 
-Step 1: SCAN FOR BROWN/ORANGE RUST (Most common!)
-- Look at EVERY part of the leaf
-- ANY brown, orange, rust, or tan coloring = Brown Rust
-- Small pustules, spots, or powdery areas = Brown Rust  
-- Even light brown/orange tint = Brown Rust
-- Rust is #1 most common disease - look very carefully!
+STEP 1 - COLOR ANALYSIS:
+Examine EVERY part of the leaf/plant for abnormal coloring:
+- Brown, orange, rust, or tan = Brown Rust (VERY COMMON!)
+- Black structures = Whiplash Smut or other fungal
+- Yellow patches = Mosaic or nutrient issue
+- Red areas = Red Rot
+- White cottony masses = Aphids
 
-Step 2: Check for other diseases:
-- Black whip structure = Whiplash Smut (rare but obvious)
-- Yellow-green mottling = Mosaic
-- Brown spots with yellow halos = Brown Spot  
-- Red discoloration = Red Rot
-- Wilting/dying = Wilt
-- Insects/aphids = Pest infestation
+STEP 2 - TEXTURE/PATTERN ANALYSIS:
+Look for:
+- Pustules or raised bumps = Rust diseases
+- Spots with halos = Spot diseases
+- Wilting or dying tissue = Wilt
+- Insects or webbing = Pest infestation
 
-Step 3: Only say "Healthy" if:
-- PERFECTLY uniform vibrant green
-- Zero spots, marks, or discoloration
-- No brown/orange/yellow anywhere
-- No insects or damage
+STEP 3 - DISEASE IDENTIFICATION:
+Based on what you see:
 
-⚠️ CRITICAL RULES:
-1. If you see ANY brown/rust coloring → It's Brown Rust (not Healthy!)
-2. If uncertain → Choose the disease (err on side of caution)
-3. Healthy diagnosis requires 100% certainty
+🟤 BROWN/ORANGE/RUST COLORING anywhere = **Brown Rust**
+⚫ Black whip structure = **Whiplash Smut**
+🟡 Yellow-green mottling = **Mosaic**
+🟤 Brown spots with borders = **Brown Spot**
+🔴 Red discoloration = **Red Rot**
+⚪ White masses = **Woolly Aphids**
+🟢 Perfect green, zero marks = **Healthy**
 
-LOOK AT THIS IMAGE RIGHT NOW:
-- Do you see any brown, orange, or rust colored areas?
-- Any spots, lesions, or discoloration at all?
-- Is it PERFECTLY green with zero marks?
+CRITICAL RULES:
+1. Even SLIGHT brown/orange tint = Brown Rust (not Healthy!)
+2. Any spots/discoloration = Disease present
+3. Only say "Healthy" if PERFECTLY uniform vibrant green
+4. When unsure = Choose the disease (conservative diagnosis)
 
-Respond in JSON ONLY:
-{"disease": "Brown Rust", "confidence": 85, "severity": "medium"}
+NOW EXAMINE THIS IMAGE:
+- What colors do you see? (describe precisely)
+- Any brown/orange/rust areas? (yes/no)
+- Any spots, marks, or discoloration? (describe)
+- Is it PERFECTLY uniform green? (yes/no)
 
-Exact disease names to use:
-Brown Rust, Red Rot, Whiplash Smut, Mosaic, Pokkah Boeng, Early Shoot Borer, Grassy Shoot Disease, Eye Spot, Brown Spot, Woolly Aphids, Black Aphid, Mites, Scale Insect, Pyrilla, Leaf Footed Bug, Internode Borer, Wilt, Healthy
+Based on your observations above, what is your diagnosis?
 
-BE THOROUGH. Look at every pixel.""",
+Return ONLY JSON:
+{"disease": "Brown Rust", "confidence": 90, "severity": "medium", "reasoning": "I observed orange-brown pustules on the leaf surface"}
+
+Disease names (use exactly):
+Brown Rust, Red Rot, Whiplash Smut, Mosaic, Pokkah Boeng, Early Shoot Borer, Grassy Shoot Disease, Eye Spot, Brown Spot, Woolly Aphids, Black Aphid, Mites, Scale Insect, Pyrilla, Leaf Footed Bug, Internode Borer, Wilt, Healthy""",
             file_contents=[ImageContent(image_base64)]
         )
         
         response = await chat.send_message(msg)
-        logging.info(f"Claude Sonnet response: {response[:500]}")
+        logging.info(f"GPT-5.1 Vision response: {response[:600]}")
         
         import json
         import re
@@ -370,33 +377,37 @@ BE THOROUGH. Look at every pixel.""",
                     result = json.loads(json_match.group())
                 except:
                     logging.warning(f"JSON parse failed: {response}")
-                    # Extract disease from text if mentioned
-                    if "rust" in response.lower() or "brown" in response.lower():
-                        result = {"disease": "Brown Rust", "confidence": 75.0, "severity": "medium"}
+                    # Extract from text
+                    if "rust" in response.lower() and "brown" in response.lower():
+                        result = {"disease": "Brown Rust", "confidence": 85.0, "severity": "medium"}
                     elif "smut" in response.lower():
-                        result = {"disease": "Whiplash Smut", "confidence": 75.0, "severity": "high"}
+                        result = {"disease": "Whiplash Smut", "confidence": 85.0, "severity": "high"}
+                    elif "mosaic" in response.lower():
+                        result = {"disease": "Mosaic", "confidence": 80.0, "severity": "medium"}
+                    elif "spot" in response.lower():
+                        result = {"disease": "Brown Spot", "confidence": 80.0, "severity": "medium"}
                     else:
                         result = {"disease": "Healthy", "confidence": 60.0, "severity": "low"}
             else:
-                logging.warning(f"No JSON in response: {response}")
+                logging.warning(f"No JSON: {response}")
                 result = {"disease": "Healthy", "confidence": 60.0, "severity": "low"}
         
         if "disease" not in result:
             result["disease"] = "Healthy"
         if "confidence" not in result:
-            result["confidence"] = 75.0
+            result["confidence"] = 80.0
         if "severity" not in result:
             result["severity"] = "low"
             
-        result["source"] = "claude-sonnet-4.5"
-        logging.info(f"Claude final result: {result}")
+        result["source"] = "gpt-5.1-vision"
+        logging.info(f"GPT-5.1 final: {result}")
         return result
             
     except Exception as e:
-        logging.error(f"Claude detection error: {e}")
+        logging.error(f"GPT-5.1 error: {e}")
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")
-        return {"disease": "Healthy", "confidence": 50.0, "severity": "low", "source": "claude"}
+        return {"disease": "Healthy", "confidence": 50.0, "severity": "low", "source": "gpt-5.1"}
 
 # Pydantic Models
 class UserRegister(BaseModel):
@@ -579,15 +590,15 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         storage_result = put_object(storage_path, image_bytes, file.content_type or "image/jpeg")
         
         # ALWAYS RUN BOTH MODELS (YOLO alone is not accurate enough)
-        logging.info("Running BOTH models: YOLO + Claude Sonnet 4.5 Vision...")
+        logging.info("Running BOTH models: YOLO + GPT-5.1 Vision (OpenAI recommended)...")
         
         # Run YOLO model
         yolo_result = await detect_disease_yolo(image_bytes)
         logging.info(f"YOLO prediction: {yolo_result['disease']} (confidence: {yolo_result['confidence']}%)")
         
-        # Run Claude Sonnet 4.5 (BEST vision model - always run)
-        claude_result = await detect_disease_gemini(image_bytes)  # Function name kept for compatibility
-        logging.info(f"Claude Sonnet 4.5 prediction: {claude_result['disease']} (confidence: {claude_result['confidence']}%)")
+        # Run GPT-5.1 Vision (OpenAI recommended - latest model)
+        gpt_result = await detect_disease_gemini(image_bytes)  # Function name kept for compatibility
+        logging.info(f"GPT-5.1 Vision prediction: {gpt_result['disease']} (confidence: {gpt_result['confidence']}%)")
         
         # COMPARE AND PICK BEST RESULT
         # Priority: Claude Sonnet 4.5 (most accurate) > YOLO
