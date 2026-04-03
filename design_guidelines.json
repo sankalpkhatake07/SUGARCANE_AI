@@ -1,0 +1,118 @@
+{
+  "project_name": "Sugarcane Disease Analysis Dashboard",
+  "domain": "Agritech / Plant Pathology",
+  "theme": "light",
+  "archetype": "Organic & Earthy",
+  "core_principles": [
+    "Mobile-first and touch-friendly for field usage.",
+    "High contrast and minimal text to ensure readability in sunlight.",
+    "Progressive disclosure: complex data hidden until requested.",
+    "Trust-building UI with clear disease severity and treatment paths."
+  ],
+  "colors": {
+    "background": "#F9F8F6",
+    "surface": "#FFFFFF",
+    "primary": "#2D5A27",
+    "primary_hover": "#24481F",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#E8ECE5",
+    "secondary_foreground": "#2D5A27",
+    "accent": "#8B9D77",
+    "text_main": "#1A201C",
+    "text_muted": "#5C6B61",
+    "border": "#DDE3DA",
+    "severity_high": "#D9534F",
+    "severity_high_bg": "#FDF0EF",
+    "severity_medium": "#F5A623",
+    "severity_medium_bg": "#FEF8ED",
+    "severity_low": "#5CB85C",
+    "severity_low_bg": "#EFF8EF"
+  },
+  "typography": {
+    "headings": {
+      "family": "Outfit",
+      "weights": ["600", "700"],
+      "usage_rules": "Tracking-tight, never use pure black, tint to dark green."
+    },
+    "body": {
+      "family": "DM Sans",
+      "weights": ["400", "500"],
+      "usage_rules": "Loose line-height (leading-relaxed) for readability."
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-bold tracking-tight text-[#1A201C]",
+      "h2": "text-2xl sm:text-3xl font-semibold tracking-tight text-[#1A201C]",
+      "h3": "text-xl sm:text-2xl font-medium",
+      "body": "text-base text-[#5C6B61]",
+      "small_labels": "text-xs font-bold uppercase tracking-[0.2em] text-[#8B9D77]"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Generous touch targets (p-6 to p-8 internally on cards), strict grid hierarchy for dashboards.",
+    "bento_grid": "Grid cols-1 on mobile, md:grid-cols-3 or 4 on desktop. Dense but clear widget sizing.",
+    "surfaces": "Flat Solid surfaces. NO glassmorphism (reduces outdoor legibility). 1px subtle border (#DDE3DA) and soft ambient shadow (shadow-sm). Cards have rounded-2xl.",
+    "alignment": "Left-align data and inputs. Center-align empty states and hero."
+  },
+  "components": {
+    "navigation": {
+      "style": "Sticky top bar, solid background (#FFFFFF), border-b (#DDE3DA).",
+      "elements": "Logo, Language Toggle (EN/HI/MR dropdown), Profile menu."
+    },
+    "upload_zone": {
+      "style": "Large dashed border (border-2 border-dashed border-[#8B9D77]), bg-[#E8ECE5]/50, min-h-[300px] flex items-center justify-center rounded-2xl transition-all hover:bg-[#E8ECE5].",
+      "interactions": "Hover state darkens background. 'Scanning' state uses 'Tracing Beam' animation around the image."
+    },
+    "results_dashboard": {
+      "layout": "Bento grid. Left: Scanned Image with bounding boxes. Right: Disease Info, Severity Badge, Confidence Score. Bottom: Treatment steps & Syngenta product recs.",
+      "severity_badges": "Rounded-full px-3 py-1 text-sm font-bold. Red for High, Yellow for Medium."
+    },
+    "history_list": {
+      "layout": "Vertical list of cards. Each card has a 64x64 thumbnail, Date, Disease Title, Severity Badge.",
+      "interactions": "Clicking a row opens a detailed view modal/sheet."
+    },
+    "data_tables": {
+      "usage": "For Admin Dashboard only. Use Shadcn Table. Clear hover rows, sticky header."
+    }
+  },
+  "motion_and_interactions": {
+    "hover": "Slight lift (-translate-y-1) and shadow-md for actionable cards.",
+    "buttons": "Scale down (scale-95) on active/click.",
+    "scanning_effect": "A moving linear gradient or tracing beam over the image container to simulate AI analysis.",
+    "page_transition": "Fade in with subtle upward translation (framer-motion opacity: 0 -> 1, y: 10 -> 0)."
+  },
+  "media_and_assets": {
+    "icon_library": "@phosphor-icons/react",
+    "images": {
+      "hero_background": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/26816054-55c0-4c2e-8815-3fcc93057a4f/images/0e70b52a55c7418044b640e18aec8a044be14a540f264246400fe573ee75bd1f.png",
+        "description": "Lush green sugarcane field with cinematic lighting and subtle digital grid, used for auth screens or hero banners."
+      },
+      "scanning_leaf": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/26816054-55c0-4c2e-8815-3fcc93057a4f/images/63a194ded3a039b2333c2e5547dc6374aa164b1fadaaee191735e650d3ce8d9c.png",
+        "description": "Macro shot of a sugarcane leaf with scanning UI, use as a placeholder for the scanning process."
+      },
+      "alert_texture": {
+        "url": "https://static.prod-images.emergentagent.com/jobs/26816054-55c0-4c2e-8815-3fcc93057a4f/images/436f726bab4f77283c221a97896201bd9a9157757f886b242fe263e985d09100.png",
+        "description": "Earthy red/yellow textured background, use for severe disease alert banners."
+      },
+      "farmer_context": {
+        "url": "https://images.pexels.com/photos/13557586/pexels-photo-13557586.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Farmer using smartphone outdoors, great for onboarding or about section."
+      }
+    }
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure text on primary buttons meets 4.5:1 WCAG.",
+    "test_ids": "MANDATORY. Every button, input, tab, and card must have a data-testid. E.g., data-testid='upload-image-button', data-testid='disease-severity-badge'."
+  },
+  "technical_instructions_to_main_agent": [
+    "Install `@phosphor-icons/react` for icons.",
+    "Install `framer-motion` for animations.",
+    "Use standard `div` and `section` for layouts. For interactive components, strictly customize Shadcn.",
+    "Admin and User flows should be protected routes. Show a clean Login screen with role selection.",
+    "For the multi-model prediction feature, mock the backend call. The UI should show a comparison card with 'Model 1 (User .pt)' and 'Model 2 (System)' resolving into a final combined prediction.",
+    "Implement internationalization (i18n) structurally. Have a language context that switches static strings between English, Hindi, and Marathi.",
+    "Ensure the design does NOT look like a default SaaS app. Infuse the earthy green colors heavily into borders, hover states, and active tabs.",
+    "Do NOT use `transparent` backgrounds for headers. Use `#FFFFFF`."
+  ]
+}
