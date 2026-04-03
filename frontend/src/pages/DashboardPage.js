@@ -180,7 +180,7 @@ export const DashboardPage = () => {
                     </div>
 
                     <div className="border-t border-[#DDE3DA] pt-4">
-                      <div className="space-y-4">{/* Removed confidence bar - clean output */}
+                      <div className="space-y-4">
                       <div>
                         <h3 className="font-semibold text-[#1A201C] mb-2">{t('symptoms')}</h3>
                         <p className="text-[#5C6B61] text-sm leading-relaxed">{result.symptoms}</p>
@@ -214,6 +214,7 @@ export const DashboardPage = () => {
                           </div>
                         </div>
                       )}
+                    </div>
                     </div>
                   </motion.div>
                 )}
