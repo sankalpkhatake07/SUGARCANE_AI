@@ -252,7 +252,33 @@ async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
         chat.with_model("gemini", "gemini-3.1-flash-preview").with_params()
         
         msg = UserMessage(
-            text="Analyze this sugarcane leaf/plant image and identify any disease or pest. Respond ONLY in this exact JSON format: {\"disease\": \"disease_name\", \"confidence\": confidence_percentage, \"severity\": \"low/medium/high\"}. Disease names must be one of: Early Shoot Borer, Grassy Shoot Disease, Healthy, Mites, Mosaic, Pokkah Boeng, Red Rot, Whiplash Smut, Woolly Aphids, Black Aphid, Brown Rust, Brown Spot, Eye Spot, Internode Borer, Leaf Footed Bug, Pyrilla, Scale Insect, or Wilt.",
+            text="""You are an expert in sugarcane disease detection. Analyze this sugarcane image carefully for any disease or pest.
+
+CRITICAL VISUAL INDICATORS TO LOOK FOR:
+- **Whiplash Smut**: BLACK WHIP-LIKE structure emerging from shoot, looks like a thin black rope/whip covered in black spores - MOST DISTINCTIVE FEATURE
+- **Red Rot**: Reddish discoloration inside stalks, white patches with red margins on leaves
+- **Brown Rust**: Small brown/orange pustules (bumps) scattered on leaf surfaces
+- **Mosaic**: Yellow and green mottled/patchy pattern on leaves (like a mosaic tile)
+- **Pokkah Boeng**: Twisted, crinkled top leaves with knife-like cuts
+- **Early Shoot Borer**: Bore holes in stems, dead central shoot (dead heart)
+- **Grassy Shoot Disease**: Multiple thin shoots growing from one point, pale yellow
+- **Eye Spot**: Oval spots with yellow halos and reddish-brown centers on leaves
+- **Brown Spot**: Brown lesions with yellow borders on leaves
+- **Woolly Aphids**: White cottony/fluffy masses on stems and leaves
+- **Black Aphid**: Clusters of small black insects on leaves/stems
+- **Mites**: Fine webbing, silvering or bronzing of leaves
+- **Scale Insect**: Small scale-covered bumps on stems and leaves
+- **Pyrilla**: White waxy covering on leaves, honeydew
+- **Leaf Footed Bug**: Visible bugs with leaf-shaped hind legs
+- **Internode Borer**: Bore holes between stem nodes, oozing
+- **Wilt**: Sudden wilting and drying of entire plant
+- **Healthy**: Vibrant green leaves, no spots, no insects, no abnormal structures
+
+Look VERY CAREFULLY for the black whip-like structure (Whiplash Smut) - it's the most distinctive disease symptom.
+
+Respond ONLY in this exact JSON format: {"disease": "disease_name", "confidence": confidence_percentage, "severity": "low/medium/high"}
+
+Disease name MUST be exactly one of: Early Shoot Borer, Grassy Shoot Disease, Healthy, Mites, Mosaic, Pokkah Boeng, Red Rot, Whiplash Smut, Woolly Aphids, Black Aphid, Brown Rust, Brown Spot, Eye Spot, Internode Borer, Leaf Footed Bug, Pyrilla, Scale Insect, Wilt""",
             file_contents=[ImageContent(image_base64)]
         )
         
