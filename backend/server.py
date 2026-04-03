@@ -16,9 +16,9 @@ import requests
 import base64
 from PIL import Image
 import io
-import torch
-from ultralytics import YOLO
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+
+# Note: Using Gemini Vision API only (cloud-ready, no ML dependencies)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -38,15 +38,6 @@ storage_key = None
 JWT_SECRET = os.environ.get("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 
-# Load YOLO model
-model_path = ROOT_DIR / "models" / "best2.pt"
-yolo_model = None
-
-try:
-    yolo_model = YOLO(str(model_path))
-    logging.info("YOLO model loaded successfully")
-except Exception as e:
-    logging.error(f"Failed to load YOLO model: {e}")
 
 # Disease Information Database (18 classes)
 DISEASE_INFO = {
