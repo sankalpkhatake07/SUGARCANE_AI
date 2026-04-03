@@ -165,11 +165,6 @@ export const DashboardPage = () => {
                         <p data-testid="disease-name" className="text-3xl font-bold text-[#2D5A27] mt-2">
                           {result.disease}
                         </p>
-                        {result.is_validated && (
-                          <span className="inline-block mt-2 text-xs px-3 py-1 rounded-full bg-[#2F6A40] text-white">
-                            AI Verified
-                          </span>
-                        )}
                       </div>
                       <div
                         style={{
@@ -185,19 +180,7 @@ export const DashboardPage = () => {
                     </div>
 
                     <div className="border-t border-[#DDE3DA] pt-4">
-                      <p className="text-sm text-[#5C6B61] mb-1">{t('confidence')}</p>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex-1 bg-[#E8ECE5] rounded-full h-3 overflow-hidden">
-                          <div
-                            className="bg-[#2D5A27] h-full rounded-full"
-                            style={{ width: `${result.confidence}%` }}
-                          ></div>
-                        </div>
-                        <span className="font-bold text-[#1A201C]">{result.confidence}%</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
+                      <div className="space-y-4">{/* Removed confidence bar - clean output */}
                       <div>
                         <h3 className="font-semibold text-[#1A201C] mb-2">{t('symptoms')}</h3>
                         <p className="text-[#5C6B61] text-sm leading-relaxed">{result.symptoms}</p>

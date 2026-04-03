@@ -16,9 +16,9 @@ import requests
 import base64
 from PIL import Image
 import io
+import torch
+from ultralytics import YOLO
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-
-# Note: Using Gemini Vision API only (cloud-ready, no ML dependencies)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -37,6 +37,16 @@ storage_key = None
 # JWT Configuration
 JWT_SECRET = os.environ.get("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
+
+# Load YOLO model
+model_path = ROOT_DIR / "models" / "best2.pt"
+yolo_model = None
+
+try:
+    yolo_model = YOLO(str(model_path))
+    logging.info("✓ YOLO model (best2.pt) loaded successfully")
+except Exception as e:
+    logging.error(f"Failed to load YOLO model: {e}")
 
 
 # Disease Information Database (18 classes)
@@ -241,6 +251,46 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+# Disease detection functions
+async def detect_disease_yolo(image_bytes: bytes) -> Dict[str, Any]:
+    """Primary: Use trained YOLO model for detection"""
+    if not yolo_model:
+        return {"disease": None, "confidence": 0, "severity": "unknown"}
+    
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        results = yolo_model(image)
+        
+        if results and len(results) > 0:
+            result = results[0]
+            if len(result.boxes) > 0:
+                box = result.boxes[0]
+                class_id = int(box.cls[0])
+                confidence = float(box.conf[0])
+                
+                disease_names = [
+                    "Early Shoot Borer", "Grassy Shoot Disease", "Healthy", "Mites",
+                    "Mosaic", "Pokkah Boeng", "Red Rot", "Whiplash Smut",
+                    "Woolly Aphids", "Black Aphid", "Brown Rust", "Brown Spot",
+                    "Eye Spot", "Internode Borer", "Leaf Footed Bug", "Pyrilla",
+                    "Scale Insect", "Wilt"
+                ]
+                disease = disease_names[class_id] if class_id < len(disease_names) else None
+                
+                if confidence > 0.7:
+                    severity = "high"
+                elif confidence > 0.4:
+                    severity = "medium"
+                else:
+                    severity = "low"
+                
+                return {"disease": disease, "confidence": round(confidence * 100, 2), "severity": severity}
+        
+        return {"disease": None, "confidence": 0, "severity": "unknown"}
+    except Exception as e:
+        logging.error(f"YOLO error: {e}")
+        return {"disease": None, "confidence": 0, "severity": "unknown"}
 
 # Note: Using Gemini Vision API exclusively for cloud deployment compatibility
 
@@ -486,15 +536,45 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         
         storage_result = put_object(storage_path, image_bytes, file.content_type or "image/jpeg")
         
-        # Run Gemini Vision AI for disease detection
-        logging.info("Running Gemini Vision AI disease detection...")
-        ai_result = await detect_disease_gemini(image_bytes)
+        # STEP 1: Try YOUR model first (primary)
+        yolo_result = await detect_disease_yolo(image_bytes)
+        logging.info(f"YOLO: {yolo_result['disease']} ({yolo_result['confidence']}%)")
         
-        final_disease = ai_result["disease"]
-        final_confidence = ai_result["confidence"]
-        final_severity = ai_result["severity"]
+        # STEP 2: If YOLO uncertain or failed, use Gemini AI as backup
+        CONFIDENCE_THRESHOLD = 60.0
+        gemini_result = None
         
-        logging.info(f"Gemini detection: {final_disease} ({final_confidence}%, {final_severity} severity)")
+        if yolo_result["disease"] is None or yolo_result["confidence"] < CONFIDENCE_THRESHOLD:
+            logging.info(f"YOLO uncertain (confidence: {yolo_result['confidence']}%), running Gemini AI backup...")
+            gemini_result = await detect_disease_gemini(image_bytes)
+            logging.info(f"Gemini: {gemini_result['disease']} ({gemini_result['confidence']}%)")
+        
+        # STEP 3: Compare and pick best result
+        if gemini_result and yolo_result["disease"]:
+            # Both models ran - compare and pick better one
+            if gemini_result["confidence"] > yolo_result["confidence"]:
+                final_disease = gemini_result["disease"]
+                final_severity = gemini_result["severity"]
+                logging.info("→ Using Gemini result (higher confidence)")
+            else:
+                final_disease = yolo_result["disease"]
+                final_severity = yolo_result["severity"]
+                logging.info("→ Using YOLO result (higher confidence)")
+        elif gemini_result:
+            # Only Gemini ran
+            final_disease = gemini_result["disease"]
+            final_severity = gemini_result["severity"]
+            logging.info("→ Using Gemini result (YOLO failed)")
+        elif yolo_result["disease"]:
+            # Only YOLO ran (high confidence)
+            final_disease = yolo_result["disease"]
+            final_severity = yolo_result["severity"]
+            logging.info("→ Using YOLO result (high confidence)")
+        else:
+            # Both failed - default to Healthy
+            final_disease = "Healthy"
+            final_severity = "low"
+            logging.warning("→ Both models failed, defaulting to Healthy")
         
         # Get disease info
         disease_info = DISEASE_INFO.get(final_disease, DISEASE_INFO.get("Healthy", {
@@ -505,23 +585,20 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
             "syngenta_products": []
         }))
         
-        # Save detection result
+        # Save detection result (NO confidence shown to user)
         detection_doc = {
             "id": image_id,
             "user_id": current_user["id"],
             "username": current_user["username"],
             "image_path": storage_result["path"],
             "disease": final_disease,
-            "confidence": final_confidence,
             "severity": final_severity,
             "treatment": disease_info["treatment"],
             "syngenta_products": disease_info["syngenta_products"],
             "symptoms": disease_info["symptoms"],
             "causes": disease_info["causes"],
             "prevention": disease_info["prevention"],
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "ai_detection": True,
-            "model_used": "Gemini Vision AI"
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
         
         await db.detections.insert_one(detection_doc)
