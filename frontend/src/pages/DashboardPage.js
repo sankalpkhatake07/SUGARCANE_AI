@@ -165,6 +165,11 @@ export const DashboardPage = () => {
                         <p data-testid="disease-name" className="text-3xl font-bold text-[#2D5A27] mt-2">
                           {result.disease}
                         </p>
+                        {result.is_validated && (
+                          <span className="inline-block mt-2 text-xs px-3 py-1 rounded-full bg-[#2F6A40] text-white">
+                            AI Verified
+                          </span>
+                        )}
                       </div>
                       <div
                         style={{

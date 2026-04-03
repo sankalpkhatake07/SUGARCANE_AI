@@ -251,65 +251,7 @@ async def get_current_user(request: Request) -> dict:
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-async def detect_disease_yolo(image_bytes: bytes) -> Dict[str, Any]:
-    """Detect disease using custom trained YOLO model"""
-    if not yolo_model:
-        return {"disease": "Unknown", "confidence": 0, "severity": "unknown", "source": "yolo"}
-    
-    try:
-        image = Image.open(io.BytesIO(image_bytes))
-        results = yolo_model(image)
-        
-        if results and len(results) > 0:
-            result = results[0]
-            if len(result.boxes) > 0:
-                box = result.boxes[0]
-                class_id = int(box.cls[0])
-                confidence = float(box.conf[0])
-                
-                # 18 disease classes
-                disease_names = [
-                    "Early Shoot Borer",
-                    "Grassy Shoot Disease",
-                    "Healthy",
-                    "Mites",
-                    "Mosaic",
-                    "Pokkah Boeng",
-                    "Red Rot",
-                    "Whiplash Smut",
-                    "Woolly Aphids",
-                    "Black Aphid",
-                    "Brown Rust",
-                    "Brown Spot",
-                    "Eye Spot",
-                    "Internode Borer",
-                    "Leaf Footed Bug",
-                    "Pyrilla",
-                    "Scale Insect",
-                    "Wilt"
-                ]
-                disease = disease_names[class_id] if class_id < len(disease_names) else "Unknown"
-                
-                if confidence > 0.7:
-                    severity = "high"
-                elif confidence > 0.4:
-                    severity = "medium"
-                else:
-                    severity = "low"
-                
-                return {
-                    "disease": disease,
-                    "confidence": round(confidence * 100, 2),
-                    "severity": severity,
-                    "source": "yolo"
-                }
-        
-        return {"disease": "Healthy", "confidence": 95.0, "severity": "low", "source": "yolo"}
-    except Exception as e:
-        logging.error(f"YOLO detection error: {e}")
-        return {"disease": "Unknown", "confidence": 0, "severity": "unknown", "source": "yolo"}
-
-# Note: Dual-model approach - YOLO (specialized) + Gemini Vision (general AI)
+# Note: Using Gemini Vision API exclusively for cloud deployment compatibility
 
 async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
     """Detect disease using Gemini Vision with improved logging"""
@@ -553,41 +495,24 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         
         storage_result = put_object(storage_path, image_bytes, file.content_type or "image/jpeg")
         
-        # Run BOTH models - use both predictions together
-        yolo_result = await detect_disease_yolo(image_bytes)
-        gemini_result = await detect_disease_gemini(image_bytes)
+        # Run Gemini Vision AI for disease detection
+        logging.info("Running Gemini Vision AI disease detection...")
+        ai_result = await detect_disease_gemini(image_bytes)
         
-        # DUAL MODEL APPROACH - Gemini gets priority
-        # If both agree, high confidence. If disagree, Gemini has more weight
-        if yolo_result["disease"] == gemini_result["disease"]:
-            # Both models agree - very confident!
-            final_disease = yolo_result["disease"]
-            final_confidence = round((yolo_result["confidence"] + gemini_result["confidence"]) / 2, 2)
-            final_severity = yolo_result["severity"]
-            agreement = "Both models agree"
-        else:
-            # Models disagree - Gemini gets priority (70% weight vs YOLO 30%)
-            gemini_weight = 0.7  # Gemini priority
-            yolo_weight = 0.3
-            
-            gemini_score = gemini_result["confidence"] * gemini_weight
-            yolo_score = yolo_result["confidence"] * yolo_weight
-            
-            if gemini_score >= yolo_score:
-                final_disease = gemini_result["disease"]
-                final_confidence = round((gemini_score + yolo_score), 2)
-                final_severity = gemini_result["severity"]
-                agreement = f"Gemini priority (Gemini: {gemini_result['disease']} {gemini_result['confidence']}%, YOLO: {yolo_result['disease']} {yolo_result['confidence']}%)"
-            else:
-                final_disease = yolo_result["disease"]
-                final_confidence = round((gemini_score + yolo_score), 2)
-                final_severity = yolo_result["severity"]
-                agreement = f"Combined (Gemini: {gemini_result['disease']} {gemini_result['confidence']}%, YOLO: {yolo_result['disease']} {yolo_result['confidence']}%)"
+        final_disease = ai_result["disease"]
+        final_confidence = ai_result["confidence"]
+        final_severity = ai_result["severity"]
         
-        logging.info(f"DUAL MODEL (Gemini Priority) - Gemini: {gemini_result['disease']} ({gemini_result['confidence']}%), YOLO: {yolo_result['disease']} ({yolo_result['confidence']}%) => Final: {final_disease} ({final_confidence}%)")
+        logging.info(f"Gemini detection: {final_disease} ({final_confidence}%, {final_severity} severity)")
         
         # Get disease info
-        disease_info = DISEASE_INFO.get(final_disease, DISEASE_INFO["Healthy"])
+        disease_info = DISEASE_INFO.get(final_disease, DISEASE_INFO.get("Healthy", {
+            "symptoms": "Unknown",
+            "causes": "Unknown",
+            "prevention": "Unknown",
+            "treatment": "Unknown",
+            "syngenta_products": []
+        }))
         
         # Save detection result
         detection_doc = {
@@ -604,15 +529,8 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
             "causes": disease_info["causes"],
             "prevention": disease_info["prevention"],
             "created_at": datetime.now(timezone.utc).isoformat(),
-            # Store both model predictions for reference
-            "yolo_prediction": {
-                "disease": yolo_result["disease"],
-                "confidence": yolo_result["confidence"]
-            },
-            "gemini_prediction": {
-                "disease": gemini_result["disease"],
-                "confidence": gemini_result["confidence"]
-            }
+            "ai_detection": True,
+            "model_used": "Gemini Vision AI"
         }
         
         await db.detections.insert_one(detection_doc)
