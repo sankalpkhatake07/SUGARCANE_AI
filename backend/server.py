@@ -296,48 +296,67 @@ async def detect_disease_yolo(image_bytes: bytes) -> Dict[str, Any]:
 # Note: Using Gemini Vision API exclusively for cloud deployment compatibility
 
 async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
-    """Detect disease using Gemini Vision with improved logging"""
+    """AI Detection: Using Claude Sonnet 4.5 Vision (most accurate)"""
     try:
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
         
         api_key = os.getenv("EMERGENT_LLM_KEY")
-        chat = LlmChat(api_key=api_key, session_id=f"detection-{uuid.uuid4()}", system_message="You are an expert plant pathologist.")
-        chat.with_model("gemini", "gemini-3.1-flash-preview").with_params()
+        chat = LlmChat(
+            api_key=api_key, 
+            session_id=f"detection-{uuid.uuid4()}", 
+            system_message="You are an expert agricultural pathologist with 25+ years specializing in sugarcane disease diagnosis. You have analyzed over 100,000 sugarcane disease cases."
+        )
+        # Use Claude Sonnet 4.5 - most accurate vision model
+        chat.with_model("anthropic", "claude-sonnet-4-5-20250929")
         
         msg = UserMessage(
-            text="""URGENT: Examine this sugarcane leaf VERY CAREFULLY for disease signs.
+            text="""EXPERT DIAGNOSIS TASK: Analyze this sugarcane image for disease/pest detection.
 
-🔍 CRITICAL INDICATORS TO CHECK:
+🔬 SYSTEMATIC EXAMINATION:
 
-1. **BROWN/ORANGE RUST** (MOST COMMON - Look closely!):
-   - ANY brown, orange, or rust-colored spots or pustules
-   - Small powdery bumps on leaves  
-   - Even FAINT orange/brown tint means Brown Rust!
-   - IF YOU SEE ANY BROWN/ORANGE = Say "Brown Rust" NOT "Healthy"!
+Step 1: SCAN FOR BROWN/ORANGE RUST (Most common!)
+- Look at EVERY part of the leaf
+- ANY brown, orange, rust, or tan coloring = Brown Rust
+- Small pustules, spots, or powdery areas = Brown Rust  
+- Even light brown/orange tint = Brown Rust
+- Rust is #1 most common disease - look very carefully!
 
-2. **Other Diseases**:
-   - Black whip = Whiplash Smut
-   - Yellow-green patches = Mosaic  
-   - Brown lesions with yellow borders = Brown Spot
-   - Red discoloration = Red Rot
+Step 2: Check for other diseases:
+- Black whip structure = Whiplash Smut (rare but obvious)
+- Yellow-green mottling = Mosaic
+- Brown spots with yellow halos = Brown Spot  
+- Red discoloration = Red Rot
+- Wilting/dying = Wilt
+- Insects/aphids = Pest infestation
 
-3. **Healthy ONLY if**:
-   - PERFECT vibrant green
-   - NO spots, marks, or discoloration AT ALL
-   - NO brown/orange/yellow anywhere
+Step 3: Only say "Healthy" if:
+- PERFECTLY uniform vibrant green
+- Zero spots, marks, or discoloration
+- No brown/orange/yellow anywhere
+- No insects or damage
 
-⚠️ RULE: If unsure between disease and healthy → Choose the disease!
+⚠️ CRITICAL RULES:
+1. If you see ANY brown/rust coloring → It's Brown Rust (not Healthy!)
+2. If uncertain → Choose the disease (err on side of caution)
+3. Healthy diagnosis requires 100% certainty
 
-NOW: Look at THIS image - do you see ANY brown, orange, or rust colored areas? Any spots at all?
+LOOK AT THIS IMAGE RIGHT NOW:
+- Do you see any brown, orange, or rust colored areas?
+- Any spots, lesions, or discoloration at all?
+- Is it PERFECTLY green with zero marks?
 
-Return ONLY JSON: {"disease": "Brown Rust", "confidence": 85, "severity": "medium"}
+Respond in JSON ONLY:
+{"disease": "Brown Rust", "confidence": 85, "severity": "medium"}
 
-Exact names: Brown Rust, Red Rot, Whiplash Smut, Mosaic, Pokkah Boeng, Early Shoot Borer, Grassy Shoot Disease, Eye Spot, Brown Spot, Woolly Aphids, Black Aphid, Mites, Scale Insect, Pyrilla, Leaf Footed Bug, Internode Borer, Wilt, Healthy""",
+Exact disease names to use:
+Brown Rust, Red Rot, Whiplash Smut, Mosaic, Pokkah Boeng, Early Shoot Borer, Grassy Shoot Disease, Eye Spot, Brown Spot, Woolly Aphids, Black Aphid, Mites, Scale Insect, Pyrilla, Leaf Footed Bug, Internode Borer, Wilt, Healthy
+
+BE THOROUGH. Look at every pixel.""",
             file_contents=[ImageContent(image_base64)]
         )
         
         response = await chat.send_message(msg)
-        logging.info(f"Gemini raw response (first 500 chars): {response[:500]}")
+        logging.info(f"Claude Sonnet response: {response[:500]}")
         
         import json
         import re
@@ -345,35 +364,39 @@ Exact names: Brown Rust, Red Rot, Whiplash Smut, Mosaic, Pokkah Boeng, Early Sho
         try:
             result = json.loads(response)
         except:
-            # Try to extract JSON
             json_match = re.search(r'\{[^}]+\}', response)
             if json_match:
                 try:
                     result = json.loads(json_match.group())
                 except:
-                    logging.warning(f"JSON parse failed. Full response: {response}")
-                    result = {"disease": "Healthy", "confidence": 60.0, "severity": "low"}
+                    logging.warning(f"JSON parse failed: {response}")
+                    # Extract disease from text if mentioned
+                    if "rust" in response.lower() or "brown" in response.lower():
+                        result = {"disease": "Brown Rust", "confidence": 75.0, "severity": "medium"}
+                    elif "smut" in response.lower():
+                        result = {"disease": "Whiplash Smut", "confidence": 75.0, "severity": "high"}
+                    else:
+                        result = {"disease": "Healthy", "confidence": 60.0, "severity": "low"}
             else:
-                logging.warning(f"No JSON found in Gemini response: {response}")
+                logging.warning(f"No JSON in response: {response}")
                 result = {"disease": "Healthy", "confidence": 60.0, "severity": "low"}
         
-        # Ensure all required fields
         if "disease" not in result:
             result["disease"] = "Healthy"
         if "confidence" not in result:
-            result["confidence"] = 70.0
+            result["confidence"] = 75.0
         if "severity" not in result:
             result["severity"] = "low"
             
-        result["source"] = "gemini"
-        logging.info(f"Gemini final result: {result}")
+        result["source"] = "claude-sonnet-4.5"
+        logging.info(f"Claude final result: {result}")
         return result
             
     except Exception as e:
-        logging.error(f"Gemini detection error: {e}")
+        logging.error(f"Claude detection error: {e}")
         import traceback
         logging.error(f"Traceback: {traceback.format_exc()}")
-        return {"disease": "Healthy", "confidence": 50.0, "severity": "low", "source": "gemini"}
+        return {"disease": "Healthy", "confidence": 50.0, "severity": "low", "source": "claude"}
 
 # Pydantic Models
 class UserRegister(BaseModel):
@@ -556,50 +579,50 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         storage_result = put_object(storage_path, image_bytes, file.content_type or "image/jpeg")
         
         # ALWAYS RUN BOTH MODELS (YOLO alone is not accurate enough)
-        logging.info("Running BOTH models for comparison...")
+        logging.info("Running BOTH models: YOLO + Claude Sonnet 4.5 Vision...")
         
         # Run YOLO model
         yolo_result = await detect_disease_yolo(image_bytes)
         logging.info(f"YOLO prediction: {yolo_result['disease']} (confidence: {yolo_result['confidence']}%)")
         
-        # Run Gemini AI (always, not just as backup)
-        gemini_result = await detect_disease_gemini(image_bytes)
-        logging.info(f"Gemini prediction: {gemini_result['disease']} (confidence: {gemini_result['confidence']}%)")
+        # Run Claude Sonnet 4.5 (BEST vision model - always run)
+        claude_result = await detect_disease_gemini(image_bytes)  # Function name kept for compatibility
+        logging.info(f"Claude Sonnet 4.5 prediction: {claude_result['disease']} (confidence: {claude_result['confidence']}%)")
         
         # COMPARE AND PICK BEST RESULT
-        # Strategy: Prioritize Gemini (more accurate) unless YOLO has very high confidence
-        if yolo_result["disease"] and gemini_result["disease"]:
+        # Priority: Claude Sonnet 4.5 (most accurate) > YOLO
+        if yolo_result["disease"] and claude_result["disease"]:
             # Both models gave predictions
-            if yolo_result["disease"] == gemini_result["disease"]:
+            if yolo_result["disease"] == claude_result["disease"]:
                 # Both agree - use result with higher confidence
                 final_disease = yolo_result["disease"]
                 final_severity = yolo_result["severity"]
-                logging.info("✓ Both models AGREE - high confidence prediction")
-            elif gemini_result["confidence"] >= 70:
-                # Gemini is confident - trust it
-                final_disease = gemini_result["disease"]
-                final_severity = gemini_result["severity"]
-                logging.info("→ Using Gemini (confident prediction)")
+                logging.info("✓ Both models AGREE - high confidence!")
+            elif claude_result["confidence"] >= 70:
+                # Claude is confident - trust it (most accurate model)
+                final_disease = claude_result["disease"]
+                final_severity = claude_result["severity"]
+                logging.info("→ Using Claude Sonnet 4.5 (most accurate, confident)")
             elif yolo_result["confidence"] >= 85:
                 # YOLO is very confident - use it
                 final_disease = yolo_result["disease"]
                 final_severity = yolo_result["severity"]
                 logging.info("→ Using YOLO (very high confidence)")
             else:
-                # Both uncertain - trust Gemini (more reliable)
-                final_disease = gemini_result["disease"]
-                final_severity = gemini_result["severity"]
-                logging.info("→ Using Gemini (both uncertain, Gemini more reliable)")
-        elif gemini_result["disease"]:
-            # Only Gemini worked
-            final_disease = gemini_result["disease"]
-            final_severity = gemini_result["severity"]
-            logging.info("→ Using Gemini (YOLO failed)")
+                # Both uncertain - trust Claude (better model)
+                final_disease = claude_result["disease"]
+                final_severity = claude_result["severity"]
+                logging.info("→ Using Claude Sonnet 4.5 (both uncertain, Claude more reliable)")
+        elif claude_result["disease"]:
+            # Only Claude worked
+            final_disease = claude_result["disease"]
+            final_severity = claude_result["severity"]
+            logging.info("→ Using Claude Sonnet 4.5 (YOLO failed)")
         elif yolo_result["disease"]:
             # Only YOLO worked
             final_disease = yolo_result["disease"]
             final_severity = yolo_result["severity"]
-            logging.info("→ Using YOLO (Gemini failed)")
+            logging.info("→ Using YOLO (Claude failed)")
         else:
             # Both failed
             final_disease = "Healthy"
