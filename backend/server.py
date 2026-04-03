@@ -312,58 +312,66 @@ async def detect_disease_yolo(image_bytes: bytes) -> Dict[str, Any]:
 # Note: Dual-model approach - YOLO (specialized) + Gemini Vision (general AI)
 
 async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
-    """Detect disease using Gemini Vision"""
+    """Detect disease using Gemini Vision with improved logging"""
     try:
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
         
         api_key = os.getenv("EMERGENT_LLM_KEY")
-        chat = LlmChat(api_key=api_key, session_id=f"detection-{uuid.uuid4()}", system_message="You are an agricultural disease expert specializing in sugarcane crop health.")
+        chat = LlmChat(api_key=api_key, session_id=f"detection-{uuid.uuid4()}", system_message="You are an expert plant pathologist.")
         chat.with_model("gemini", "gemini-3.1-flash-preview").with_params()
         
         msg = UserMessage(
-            text="""You are an expert in sugarcane disease detection. Analyze this sugarcane image carefully for any disease or pest.
+            text="""Look at this sugarcane plant image. Identify any disease or pest problem you see.
 
-CRITICAL VISUAL INDICATORS TO LOOK FOR:
-- **Whiplash Smut**: BLACK WHIP-LIKE structure emerging from shoot, looks like a thin black rope/whip covered in black spores - MOST DISTINCTIVE FEATURE
-- **Red Rot**: Reddish discoloration inside stalks, white patches with red margins on leaves
-- **Brown Rust**: Small brown/orange pustules (bumps) scattered on leaf surfaces
-- **Mosaic**: Yellow and green mottled/patchy pattern on leaves (like a mosaic tile)
-- **Pokkah Boeng**: Twisted, crinkled top leaves with knife-like cuts
-- **Early Shoot Borer**: Bore holes in stems, dead central shoot (dead heart)
-- **Grassy Shoot Disease**: Multiple thin shoots growing from one point, pale yellow
-- **Eye Spot**: Oval spots with yellow halos and reddish-brown centers on leaves
-- **Brown Spot**: Brown lesions with yellow borders on leaves
-- **Woolly Aphids**: White cottony/fluffy masses on stems and leaves
-- **Black Aphid**: Clusters of small black insects on leaves/stems
-- **Mites**: Fine webbing, silvering or bronzing of leaves
-- **Scale Insect**: Small scale-covered bumps on stems and leaves
-- **Pyrilla**: White waxy covering on leaves, honeydew
-- **Leaf Footed Bug**: Visible bugs with leaf-shaped hind legs
-- **Internode Borer**: Bore holes between stem nodes, oozing
-- **Wilt**: Sudden wilting and drying of entire plant
-- **Healthy**: Vibrant green leaves, no spots, no insects, no abnormal structures
+If you see black whip-like structures = Whiplash Smut
+If you see brown spots = Brown Spot or Brown Rust  
+If you see insects = identify the insect type
+If everything looks green and healthy = Healthy
 
-Look VERY CAREFULLY for the black whip-like structure (Whiplash Smut) - it's the most distinctive disease symptom.
+Return only JSON: {"disease": "DiseaseName", "confidence": 80, "severity": "medium"}
 
-Respond ONLY in this exact JSON format: {"disease": "disease_name", "confidence": confidence_percentage, "severity": "low/medium/high"}
-
-Disease name MUST be exactly one of: Early Shoot Borer, Grassy Shoot Disease, Healthy, Mites, Mosaic, Pokkah Boeng, Red Rot, Whiplash Smut, Woolly Aphids, Black Aphid, Brown Rust, Brown Spot, Eye Spot, Internode Borer, Leaf Footed Bug, Pyrilla, Scale Insect, Wilt""",
+Use these exact names: Whiplash Smut, Red Rot, Brown Rust, Mosaic, Pokkah Boeng, Early Shoot Borer, Grassy Shoot Disease, Eye Spot, Brown Spot, Woolly Aphids, Black Aphid, Mites, Scale Insect, Pyrilla, Leaf Footed Bug, Internode Borer, Wilt, Healthy""",
             file_contents=[ImageContent(image_base64)]
         )
         
         response = await chat.send_message(msg)
+        logging.info(f"Gemini raw response (first 500 chars): {response[:500]}")
         
         import json
+        import re
+        
         try:
             result = json.loads(response)
-            result["source"] = "gemini"
-            return result
         except:
-            return {"disease": "Healthy", "confidence": 85.0, "severity": "low", "source": "gemini"}
+            # Try to extract JSON
+            json_match = re.search(r'\{[^}]+\}', response)
+            if json_match:
+                try:
+                    result = json.loads(json_match.group())
+                except:
+                    logging.warning(f"JSON parse failed. Full response: {response}")
+                    result = {"disease": "Healthy", "confidence": 60.0, "severity": "low"}
+            else:
+                logging.warning(f"No JSON found in Gemini response: {response}")
+                result = {"disease": "Healthy", "confidence": 60.0, "severity": "low"}
+        
+        # Ensure all required fields
+        if "disease" not in result:
+            result["disease"] = "Healthy"
+        if "confidence" not in result:
+            result["confidence"] = 70.0
+        if "severity" not in result:
+            result["severity"] = "low"
+            
+        result["source"] = "gemini"
+        logging.info(f"Gemini final result: {result}")
+        return result
             
     except Exception as e:
         logging.error(f"Gemini detection error: {e}")
-        return {"disease": "Healthy", "confidence": 85.0, "severity": "low"}
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
+        return {"disease": "Healthy", "confidence": 50.0, "severity": "low", "source": "gemini"}
 
 # Pydantic Models
 class UserRegister(BaseModel):
