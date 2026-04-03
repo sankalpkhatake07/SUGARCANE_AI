@@ -39,7 +39,7 @@ JWT_SECRET = os.environ.get("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 
 # Load YOLO model
-model_path = ROOT_DIR / "models" / "best2.pt"
+model_path = ROOT_DIR / "models" / "best2.pt"  # Using best2.pt (152MB trained model)
 yolo_model = None
 
 try:
@@ -47,6 +47,7 @@ try:
     logging.info("✓ YOLO model (best2.pt) loaded successfully")
 except Exception as e:
     logging.error(f"Failed to load YOLO model: {e}")
+    logging.info("Will rely on Gemini Vision API only")
 
 
 # Disease Information Database (18 classes)
@@ -536,45 +537,58 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         
         storage_result = put_object(storage_path, image_bytes, file.content_type or "image/jpeg")
         
-        # STEP 1: Try YOUR model first (primary)
+        # ALWAYS RUN BOTH MODELS (YOLO alone is not accurate enough)
+        logging.info("Running BOTH models for comparison...")
+        
+        # Run YOLO model
         yolo_result = await detect_disease_yolo(image_bytes)
-        logging.info(f"YOLO: {yolo_result['disease']} ({yolo_result['confidence']}%)")
+        logging.info(f"YOLO prediction: {yolo_result['disease']} (confidence: {yolo_result['confidence']}%)")
         
-        # STEP 2: If YOLO uncertain or failed, use Gemini AI as backup
-        CONFIDENCE_THRESHOLD = 60.0
-        gemini_result = None
+        # Run Gemini AI (always, not just as backup)
+        gemini_result = await detect_disease_gemini(image_bytes)
+        logging.info(f"Gemini prediction: {gemini_result['disease']} (confidence: {gemini_result['confidence']}%)")
         
-        if yolo_result["disease"] is None or yolo_result["confidence"] < CONFIDENCE_THRESHOLD:
-            logging.info(f"YOLO uncertain (confidence: {yolo_result['confidence']}%), running Gemini AI backup...")
-            gemini_result = await detect_disease_gemini(image_bytes)
-            logging.info(f"Gemini: {gemini_result['disease']} ({gemini_result['confidence']}%)")
-        
-        # STEP 3: Compare and pick best result
-        if gemini_result and yolo_result["disease"]:
-            # Both models ran - compare and pick better one
-            if gemini_result["confidence"] > yolo_result["confidence"]:
-                final_disease = gemini_result["disease"]
-                final_severity = gemini_result["severity"]
-                logging.info("→ Using Gemini result (higher confidence)")
-            else:
+        # COMPARE AND PICK BEST RESULT
+        # Strategy: Prioritize Gemini (more accurate) unless YOLO has very high confidence
+        if yolo_result["disease"] and gemini_result["disease"]:
+            # Both models gave predictions
+            if yolo_result["disease"] == gemini_result["disease"]:
+                # Both agree - use result with higher confidence
                 final_disease = yolo_result["disease"]
                 final_severity = yolo_result["severity"]
-                logging.info("→ Using YOLO result (higher confidence)")
-        elif gemini_result:
-            # Only Gemini ran
+                logging.info("✓ Both models AGREE - high confidence prediction")
+            elif gemini_result["confidence"] >= 70:
+                # Gemini is confident - trust it
+                final_disease = gemini_result["disease"]
+                final_severity = gemini_result["severity"]
+                logging.info("→ Using Gemini (confident prediction)")
+            elif yolo_result["confidence"] >= 85:
+                # YOLO is very confident - use it
+                final_disease = yolo_result["disease"]
+                final_severity = yolo_result["severity"]
+                logging.info("→ Using YOLO (very high confidence)")
+            else:
+                # Both uncertain - trust Gemini (more reliable)
+                final_disease = gemini_result["disease"]
+                final_severity = gemini_result["severity"]
+                logging.info("→ Using Gemini (both uncertain, Gemini more reliable)")
+        elif gemini_result["disease"]:
+            # Only Gemini worked
             final_disease = gemini_result["disease"]
             final_severity = gemini_result["severity"]
-            logging.info("→ Using Gemini result (YOLO failed)")
+            logging.info("→ Using Gemini (YOLO failed)")
         elif yolo_result["disease"]:
-            # Only YOLO ran (high confidence)
+            # Only YOLO worked
             final_disease = yolo_result["disease"]
             final_severity = yolo_result["severity"]
-            logging.info("→ Using YOLO result (high confidence)")
+            logging.info("→ Using YOLO (Gemini failed)")
         else:
-            # Both failed - default to Healthy
+            # Both failed
             final_disease = "Healthy"
             final_severity = "low"
-            logging.warning("→ Both models failed, defaulting to Healthy")
+            logging.warning("⚠ Both models failed - defaulting to Healthy")
+        
+        logging.info(f"FINAL RESULT: {final_disease} (severity: {final_severity})")
         
         # Get disease info
         disease_info = DISEASE_INFO.get(final_disease, DISEASE_INFO.get("Healthy", {
