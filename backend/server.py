@@ -263,16 +263,25 @@ async def get_current_user(request: Request) -> dict:
 async def detect_disease_yolo(image_bytes: bytes) -> Dict[str, Any]:
     """Primary: Use trained YOLO model for detection"""
     if not yolo_model:
-        return {"disease": None, "confidence": 0, "severity": "unknown"}
+        return {"disease": None, "confidence": 0, "severity": "unknown", "boxes": []}
     
     try:
         image = Image.open(io.BytesIO(image_bytes))
-        results = yolo_model(image)
+        results = yolo_model(image, conf=0.15)  # Lower threshold to catch more detections
         
         if results and len(results) > 0:
             result = results[0]
             if len(result.boxes) > 0:
-                box = result.boxes[0]
+                # Pick the detection with highest confidence
+                best_idx = 0
+                best_conf = 0
+                for i in range(len(result.boxes)):
+                    conf = float(result.boxes[i].conf[0])
+                    if conf > best_conf:
+                        best_conf = conf
+                        best_idx = i
+                
+                box = result.boxes[best_idx]
                 class_id = int(box.cls[0])
                 confidence = float(box.conf[0])
                 
@@ -280,24 +289,38 @@ async def detect_disease_yolo(image_bytes: bytes) -> Dict[str, Any]:
                 raw_name = yolo_model.names.get(class_id, None)
                 disease = raw_name.title() if raw_name else None
                 
-                if confidence > 0.7:
+                # Collect all bounding box info
+                boxes = []
+                for i in range(len(result.boxes)):
+                    b = result.boxes[i]
+                    boxes.append({
+                        "x1": float(b.xyxy[0][0]),
+                        "y1": float(b.xyxy[0][1]),
+                        "x2": float(b.xyxy[0][2]),
+                        "y2": float(b.xyxy[0][3]),
+                        "class": yolo_model.names.get(int(b.cls[0]), "").title(),
+                        "conf": round(float(b.conf[0]) * 100, 1)
+                    })
+                
+                if confidence > 0.6:
                     severity = "high"
-                elif confidence > 0.4:
+                elif confidence > 0.3:
                     severity = "medium"
                 else:
                     severity = "low"
                 
-                return {"disease": disease, "confidence": round(confidence * 100, 2), "severity": severity}
+                logging.info(f"YOLO detected {len(result.boxes)} objects, best: {disease} ({round(confidence*100,1)}%)")
+                return {"disease": disease, "confidence": round(confidence * 100, 2), "severity": severity, "boxes": boxes}
         
-        return {"disease": None, "confidence": 0, "severity": "unknown"}
+        return {"disease": None, "confidence": 0, "severity": "unknown", "boxes": []}
     except Exception as e:
         logging.error(f"YOLO error: {e}")
-        return {"disease": None, "confidence": 0, "severity": "unknown"}
+        return {"disease": None, "confidence": 0, "severity": "unknown", "boxes": []}
 
 # Note: Using Gemini Vision API exclusively for cloud deployment compatibility
 
-async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
-    """AI Detection: Using GPT-5.1 Vision (OpenAI recommended model)"""
+async def detect_disease_ai(image_bytes: bytes) -> Dict[str, Any]:
+    """AI Vision Detection: GPT-5.1 with detailed sugarcane disease knowledge"""
     try:
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
         
@@ -305,110 +328,116 @@ async def detect_disease_gemini(image_bytes: bytes) -> Dict[str, Any]:
         chat = LlmChat(
             api_key=api_key, 
             session_id=f"detection-{uuid.uuid4()}", 
-            system_message="You are a world-class agricultural disease expert specializing in sugarcane pathology with 30 years of field experience diagnosing over 500,000 cases."
+            system_message="You are a sugarcane pathologist. Classify the disease in the image. Respond ONLY with a JSON object."
         )
-        # Use GPT-5.1 - OpenAI's recommended vision model
         chat.with_model("openai", "gpt-5.1")
         
         msg = UserMessage(
-            text="""DISEASE DETECTION PROTOCOL:
+            text="""Classify the sugarcane disease in this image. Use ONLY these exact disease names:
 
-You are examining a sugarcane plant image. Follow this systematic protocol:
+VISUAL GUIDE (match the image to ONE of these):
 
-STEP 1 - COLOR ANALYSIS:
-Examine EVERY part of the leaf/plant for abnormal coloring:
-- Brown, orange, rust, or tan = Brown Rust (VERY COMMON!)
-- Black structures = Whiplash Smut or other fungal
-- Yellow patches = Mosaic or nutrient issue
-- Red areas = Red Rot
-- White cottony masses = Aphids
+1. "Early Shoot Borer" - Cross-section of stem showing internal tunneling/boring damage, white larvae/caterpillar visible inside reddish damaged stem tissue
+2. "Grassy Shoot Disease" - Multiple thin pale grass-like shoots growing from one stool, bushy appearance, pale yellow narrow leaves
+3. "Mites" - Silvery/white streaks or tiny white dot-like structures along leaf veins, fine webbing, leaves look bleached or whitish
+4. "Mosaic" - Irregular yellow-green mottling/patchwork pattern on leaves, alternating light and dark green areas creating mosaic pattern
+5. "Pokkah Boeng" - Young top leaves twisted, crinkled, malformed; knife-cut lesions on unfurling leaves; distorted shoot tip
+6. "Red Rot" - Internal reddening when stem is cut open, red discolored vascular tissue, withered upper leaves
+7. "Whiplash Smut" - Long black whip-like structure (sorus) emerging from the shoot tip, covered in dark powdery spores
+8. "Woolly Aphids" - White cottony/woolly masses on undersides of leaves or stems, honeydew and sooty mold
+9. "Brown Rust" - Many small raised orange-brown pustules scattered across leaf surface, rust-colored powder when touched, elongated pustules parallel to veins
+10. "Brown Spot" - Distinct brown oval spots with yellow halos on leaves, spots may merge into larger patches
+11. "Eye Spot" - Oval/elongated spots with reddish-brown center and lighter border (eye-shaped), spots with concentric zones
+12. "Internode Borer" - Bore holes in stem internodes with frass, internal tunneling in stem, red discoloration around entry holes
+13. "Leaf Footed Bug" - Visible bugs on leaves/stems with leaf-shaped hind legs, yellowing/wilting where they feed
+14. "Pyrilla" - White waxy-coated insects on leaf surface, planthopper insects with distinctive shape, waxy filaments
+15. "Scale Insect" - Small oval scale-covered insects attached to stems, crusty brown/white scales on stem surface
+16. "Black Aphid" - Clusters of dark/black small insects on leaves or stems, curled leaves
+17. "Wilt" - Sudden yellowing and drooping of entire plant, vascular browning
+18. "Healthy" - ONLY if leaves are perfectly uniform green with absolutely zero spots, marks, discoloration, or pests
 
-STEP 2 - TEXTURE/PATTERN ANALYSIS:
-Look for:
-- Pustules or raised bumps = Rust diseases
-- Spots with halos = Spot diseases
-- Wilting or dying tissue = Wilt
-- Insects or webbing = Pest infestation
+RULES:
+- If you see ANY brown/orange pustules on leaves = "Brown Rust"
+- If you see oval spots with borders/halos = "Eye Spot"  
+- If you see twisted/distorted top shoots = "Pokkah Boeng"
+- If you see black whip from top = "Whiplash Smut"
+- If you see mosaic yellow-green pattern = "Mosaic"
+- If you see white streaks/dots on stems = "Mites"
+- If you see larvae inside stem = "Early Shoot Borer"
+- NEVER say "Healthy" if there is ANY visible damage, spot, discoloration, or pest
+- Be conservative: when in doubt, diagnose the disease
 
-STEP 3 - DISEASE IDENTIFICATION:
-Based on what you see:
+Return ONLY this JSON (no other text):
+{"disease": "DISEASE_NAME", "confidence": 85, "severity": "medium"}
 
-🟤 BROWN/ORANGE/RUST COLORING anywhere = **Brown Rust**
-⚫ Black whip structure = **Whiplash Smut**
-🟡 Yellow-green mottling = **Mosaic**
-🟤 Brown spots with borders = **Brown Spot**
-🔴 Red discoloration = **Red Rot**
-⚪ White masses = **Woolly Aphids**
-🟢 Perfect green, zero marks = **Healthy**
-
-CRITICAL RULES:
-1. Even SLIGHT brown/orange tint = Brown Rust (not Healthy!)
-2. Any spots/discoloration = Disease present
-3. Only say "Healthy" if PERFECTLY uniform vibrant green
-4. When unsure = Choose the disease (conservative diagnosis)
-
-NOW EXAMINE THIS IMAGE:
-- What colors do you see? (describe precisely)
-- Any brown/orange/rust areas? (yes/no)
-- Any spots, marks, or discoloration? (describe)
-- Is it PERFECTLY uniform green? (yes/no)
-
-Based on your observations above, what is your diagnosis?
-
-Return ONLY JSON:
-{"disease": "Brown Rust", "confidence": 90, "severity": "medium", "reasoning": "I observed orange-brown pustules on the leaf surface"}
-
-Disease names (use exactly):
-Brown Rust, Red Rot, Whiplash Smut, Mosaic, Pokkah Boeng, Early Shoot Borer, Grassy Shoot Disease, Eye Spot, Brown Spot, Woolly Aphids, Black Aphid, Mites, Scale Insect, Pyrilla, Leaf Footed Bug, Internode Borer, Wilt, Healthy""",
+severity must be "high", "medium", or "low" based on visible damage extent.""",
             file_contents=[ImageContent(image_base64)]
         )
         
         response = await chat.send_message(msg)
-        logging.info(f"GPT-5.1 Vision response: {response[:600]}")
+        logging.info(f"GPT-5.1 raw response: {response[:500]}")
         
         import json
         import re
         
+        result = None
+        # Try parsing JSON
         try:
             result = json.loads(response)
-        except:
-            json_match = re.search(r'\{[^}]+\}', response)
+        except Exception:
+            json_match = re.search(r'\{[^{}]+\}', response)
             if json_match:
                 try:
                     result = json.loads(json_match.group())
-                except:
-                    logging.warning(f"JSON parse failed: {response}")
-                    # Extract from text
-                    if "rust" in response.lower() and "brown" in response.lower():
-                        result = {"disease": "Brown Rust", "confidence": 85.0, "severity": "medium"}
-                    elif "smut" in response.lower():
-                        result = {"disease": "Whiplash Smut", "confidence": 85.0, "severity": "high"}
-                    elif "mosaic" in response.lower():
-                        result = {"disease": "Mosaic", "confidence": 80.0, "severity": "medium"}
-                    elif "spot" in response.lower():
-                        result = {"disease": "Brown Spot", "confidence": 80.0, "severity": "medium"}
-                    else:
-                        result = {"disease": "Healthy", "confidence": 60.0, "severity": "low"}
-            else:
-                logging.warning(f"No JSON: {response}")
-                result = {"disease": "Healthy", "confidence": 60.0, "severity": "low"}
+                except Exception:
+                    pass
         
-        if "disease" not in result:
-            result["disease"] = "Healthy"
-        if "confidence" not in result:
-            result["confidence"] = 80.0
-        if "severity" not in result:
-            result["severity"] = "low"
+        if not result or "disease" not in result:
+            # Keyword-based fallback extraction
+            resp_lower = response.lower()
+            disease_keywords = [
+                ("early shoot borer", "Early Shoot Borer"),
+                ("pokkah boeng", "Pokkah Boeng"),
+                ("brown rust", "Brown Rust"),
+                ("brown spot", "Brown Spot"),
+                ("eye spot", "Eye Spot"),
+                ("whiplash smut", "Whiplash Smut"),
+                ("woolly aphid", "Woolly Aphids"),
+                ("black aphid", "Black Aphid"),
+                ("red rot", "Red Rot"),
+                ("mosaic", "Mosaic"),
+                ("mites", "Mites"),
+                ("grassy shoot", "Grassy Shoot Disease"),
+                ("internode borer", "Internode Borer"),
+                ("leaf footed", "Leaf Footed Bug"),
+                ("pyrilla", "Pyrilla"),
+                ("scale insect", "Scale Insect"),
+                ("wilt", "Wilt"),
+            ]
+            detected = None
+            for keyword, name in disease_keywords:
+                if keyword in resp_lower:
+                    detected = name
+                    break
+            result = {"disease": detected or "Healthy", "confidence": 75.0, "severity": "medium"}
+        
+        result.setdefault("confidence", 80.0)
+        result.setdefault("severity", "medium")
+        
+        # Normalize disease name to match DISEASE_INFO keys
+        disease_name = result["disease"]
+        for valid_name in DISEASE_INFO.keys():
+            if disease_name.lower().strip() == valid_name.lower().strip():
+                result["disease"] = valid_name
+                break
             
         result["source"] = "gpt-5.1-vision"
-        logging.info(f"GPT-5.1 final: {result}")
+        logging.info(f"GPT-5.1 final: disease={result['disease']}, conf={result['confidence']}")
         return result
             
     except Exception as e:
         logging.error(f"GPT-5.1 error: {e}")
-        import traceback
-        logging.error(f"Traceback: {traceback.format_exc()}")
-        return {"disease": "Healthy", "confidence": 50.0, "severity": "low", "source": "gpt-5.1"}
+        return {"disease": None, "confidence": 0, "severity": "unknown", "source": "gpt-5.1"}
 
 # Pydantic Models
 class UserRegister(BaseModel):
@@ -590,69 +619,85 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         
         storage_result = put_object(storage_path, image_bytes, file.content_type or "image/jpeg")
         
-        # ALWAYS RUN BOTH MODELS (YOLO alone is not accurate enough)
-        logging.info("Running BOTH models: YOLO + GPT-5.1 Vision (OpenAI recommended)...")
+        # ALWAYS RUN BOTH MODELS
+        logging.info("Running dual detection: YOLO (primary) + GPT-5.1 Vision (verifier)...")
         
-        # Run YOLO model
+        # Run YOLO model (primary - trained specifically on sugarcane diseases)
         yolo_result = await detect_disease_yolo(image_bytes)
-        logging.info(f"YOLO prediction: {yolo_result['disease']} (confidence: {yolo_result['confidence']}%)")
+        logging.info(f"YOLO: {yolo_result['disease']} ({yolo_result['confidence']}%)")
         
-        # Run GPT-5.1 Vision (OpenAI recommended - latest model)
-        gpt_result = await detect_disease_gemini(image_bytes)  # Function name kept for compatibility
-        logging.info(f"GPT-5.1 Vision prediction: {gpt_result['disease']} (confidence: {gpt_result['confidence']}%)")
+        # Run GPT-5.1 Vision (verifier/fallback)
+        gpt_result = await detect_disease_ai(image_bytes)
+        logging.info(f"GPT-5.1: {gpt_result['disease']} ({gpt_result['confidence']}%)")
         
-        # COMPARE AND PICK BEST RESULT
-        # Priority: GPT-5.1 Vision (most accurate) > YOLO
+        # COMPARISON LOGIC
+        # Priority: YOLO (domain-trained) is primary, GPT-5.1 is verifier
         if yolo_result["disease"] and gpt_result["disease"]:
-            # Both models gave predictions - normalize for comparison
             yolo_norm = yolo_result["disease"].lower().strip()
             gpt_norm = gpt_result["disease"].lower().strip()
+            
             if yolo_norm == gpt_norm:
-                # Both agree - high confidence
-                final_disease = gpt_result["disease"]
-                final_severity = gpt_result["severity"]
-                logging.info("Both models AGREE - high confidence!")
-            elif gpt_result["confidence"] >= 70:
-                # GPT is confident - trust it
-                final_disease = gpt_result["disease"]
-                final_severity = gpt_result["severity"]
-                logging.info("Using GPT-5.1 Vision (confident)")
-            elif yolo_result["confidence"] >= 85:
-                # YOLO is very confident - use it
+                # Both agree — highest confidence
+                final_disease = yolo_result["disease"]
+                final_severity = gpt_result["severity"] if gpt_result["severity"] != "unknown" else yolo_result["severity"]
+                logging.info("BOTH AGREE — using shared prediction")
+            elif yolo_result["confidence"] >= 40:
+                # YOLO has decent confidence — trust the trained model
                 final_disease = yolo_result["disease"]
                 final_severity = yolo_result["severity"]
-                logging.info("Using YOLO (very high confidence)")
-            else:
-                # Both uncertain - trust GPT (better model)
+                logging.info(f"Using YOLO (trained model, {yolo_result['confidence']}% confidence)")
+            elif gpt_result["confidence"] >= 75:
+                # GPT is fairly confident and YOLO is weak — trust GPT
                 final_disease = gpt_result["disease"]
                 final_severity = gpt_result["severity"]
-                logging.info("Using GPT-5.1 Vision (both uncertain, GPT more reliable)")
-        elif gpt_result["disease"]:
-            # Only GPT worked
-            final_disease = gpt_result["disease"]
-            final_severity = gpt_result["severity"]
-            logging.info("Using GPT-5.1 Vision (YOLO failed)")
+                logging.info(f"Using GPT-5.1 (YOLO weak, GPT confident at {gpt_result['confidence']}%)")
+            else:
+                # Both uncertain — pick the one with higher confidence
+                if gpt_result["confidence"] > yolo_result["confidence"]:
+                    final_disease = gpt_result["disease"]
+                    final_severity = gpt_result["severity"]
+                    logging.info(f"Both uncertain — GPT higher confidence ({gpt_result['confidence']}% vs {yolo_result['confidence']}%)")
+                else:
+                    final_disease = yolo_result["disease"]
+                    final_severity = yolo_result["severity"]
+                    logging.info(f"Both uncertain — YOLO higher confidence ({yolo_result['confidence']}% vs {gpt_result['confidence']}%)")
         elif yolo_result["disease"]:
-            # Only YOLO worked
+            # Only YOLO detected
             final_disease = yolo_result["disease"]
             final_severity = yolo_result["severity"]
-            logging.info("Using YOLO (GPT failed)")
+            logging.info("Using YOLO only (GPT returned nothing)")
+        elif gpt_result["disease"]:
+            # Only GPT detected (YOLO found no objects)
+            final_disease = gpt_result["disease"]
+            final_severity = gpt_result["severity"]
+            logging.info("Using GPT-5.1 only (YOLO found no detections)")
         else:
-            # Both failed
+            # Neither detected anything
             final_disease = "Healthy"
             final_severity = "low"
-            logging.warning("Both models failed - defaulting to Healthy")
+            logging.info("No disease detected by either model — Healthy")
         
         logging.info(f"FINAL RESULT: {final_disease} (severity: {final_severity})")
         
-        # Get disease info
-        disease_info = DISEASE_INFO.get(final_disease, DISEASE_INFO.get("Healthy", {
-            "symptoms": "Unknown",
-            "causes": "Unknown",
-            "prevention": "Unknown",
-            "treatment": "Unknown",
-            "syngenta_products": []
-        }))
+        # Normalize severity
+        if final_severity not in ("high", "medium", "low"):
+            final_severity = "medium" if final_disease != "Healthy" else "low"
+        
+        # Get disease info (case-insensitive lookup)
+        disease_info = None
+        for key, val in DISEASE_INFO.items():
+            if key.lower() == final_disease.lower():
+                disease_info = val
+                final_disease = key  # Normalize to correct case
+                break
+        if not disease_info:
+            disease_info = DISEASE_INFO.get("Healthy", {
+                "symptoms": "Unknown",
+                "causes": "Unknown", 
+                "prevention": "Unknown",
+                "treatment": "Unknown",
+                "syngenta_products": []
+            })
         
         # Save detection result (NO confidence shown to user)
         detection_doc = {
