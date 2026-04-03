@@ -20,6 +20,12 @@ import torch
 from ultralytics import YOLO
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -39,12 +45,12 @@ JWT_SECRET = os.environ.get("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 
 # Load YOLO model
-model_path = ROOT_DIR / "models" / "best2.pt"  # Using best2.pt (152MB trained model)
+model_path = ROOT_DIR / "models" / "best.pt"  # Using user-provided best.pt (15 classes)
 yolo_model = None
 
 try:
     yolo_model = YOLO(str(model_path))
-    logging.info("✓ YOLO model (best2.pt) loaded successfully")
+    logging.info("YOLO model (best.pt) loaded successfully")
 except Exception as e:
     logging.error(f"Failed to load YOLO model: {e}")
     logging.info("Will rely on Gemini Vision API only")
@@ -270,14 +276,9 @@ async def detect_disease_yolo(image_bytes: bytes) -> Dict[str, Any]:
                 class_id = int(box.cls[0])
                 confidence = float(box.conf[0])
                 
-                disease_names = [
-                    "Early Shoot Borer", "Grassy Shoot Disease", "Healthy", "Mites",
-                    "Mosaic", "Pokkah Boeng", "Red Rot", "Whiplash Smut",
-                    "Woolly Aphids", "Black Aphid", "Brown Rust", "Brown Spot",
-                    "Eye Spot", "Internode Borer", "Leaf Footed Bug", "Pyrilla",
-                    "Scale Insect", "Wilt"
-                ]
-                disease = disease_names[class_id] if class_id < len(disease_names) else None
+                # Use model's own class names (normalized to title case)
+                raw_name = yolo_model.names.get(class_id, None)
+                disease = raw_name.title() if raw_name else None
                 
                 if confidence > 0.7:
                     severity = "high"
@@ -601,44 +602,46 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         logging.info(f"GPT-5.1 Vision prediction: {gpt_result['disease']} (confidence: {gpt_result['confidence']}%)")
         
         # COMPARE AND PICK BEST RESULT
-        # Priority: Claude Sonnet 4.5 (most accurate) > YOLO
-        if yolo_result["disease"] and claude_result["disease"]:
-            # Both models gave predictions
-            if yolo_result["disease"] == claude_result["disease"]:
-                # Both agree - use result with higher confidence
-                final_disease = yolo_result["disease"]
-                final_severity = yolo_result["severity"]
-                logging.info("✓ Both models AGREE - high confidence!")
-            elif claude_result["confidence"] >= 70:
-                # Claude is confident - trust it (most accurate model)
-                final_disease = claude_result["disease"]
-                final_severity = claude_result["severity"]
-                logging.info("→ Using Claude Sonnet 4.5 (most accurate, confident)")
+        # Priority: GPT-5.1 Vision (most accurate) > YOLO
+        if yolo_result["disease"] and gpt_result["disease"]:
+            # Both models gave predictions - normalize for comparison
+            yolo_norm = yolo_result["disease"].lower().strip()
+            gpt_norm = gpt_result["disease"].lower().strip()
+            if yolo_norm == gpt_norm:
+                # Both agree - high confidence
+                final_disease = gpt_result["disease"]
+                final_severity = gpt_result["severity"]
+                logging.info("Both models AGREE - high confidence!")
+            elif gpt_result["confidence"] >= 70:
+                # GPT is confident - trust it
+                final_disease = gpt_result["disease"]
+                final_severity = gpt_result["severity"]
+                logging.info("Using GPT-5.1 Vision (confident)")
             elif yolo_result["confidence"] >= 85:
                 # YOLO is very confident - use it
                 final_disease = yolo_result["disease"]
                 final_severity = yolo_result["severity"]
-                logging.info("→ Using YOLO (very high confidence)")
+                logging.info("Using YOLO (very high confidence)")
             else:
-                # Both uncertain - trust Claude (better model)
-                final_disease = claude_result["disease"]
-                final_severity = claude_result["severity"]
-                logging.info("→ Using Claude Sonnet 4.5 (both uncertain, Claude more reliable)")
-        elif claude_result["disease"]:
-            # Only Claude worked
-            final_disease = claude_result["disease"]
-            final_severity = claude_result["severity"]
-            logging.info("→ Using Claude Sonnet 4.5 (YOLO failed)")
+                # Both uncertain - trust GPT (better model)
+                final_disease = gpt_result["disease"]
+                final_severity = gpt_result["severity"]
+                logging.info("Using GPT-5.1 Vision (both uncertain, GPT more reliable)")
+        elif gpt_result["disease"]:
+            # Only GPT worked
+            final_disease = gpt_result["disease"]
+            final_severity = gpt_result["severity"]
+            logging.info("Using GPT-5.1 Vision (YOLO failed)")
         elif yolo_result["disease"]:
             # Only YOLO worked
             final_disease = yolo_result["disease"]
             final_severity = yolo_result["severity"]
-            logging.info("→ Using YOLO (Claude failed)")
+            logging.info("Using YOLO (GPT failed)")
         else:
             # Both failed
             final_disease = "Healthy"
             final_severity = "low"
-            logging.warning("⚠ Both models failed - defaulting to Healthy")
+            logging.warning("Both models failed - defaulting to Healthy")
         
         logging.info(f"FINAL RESULT: {final_disease} (severity: {final_severity})")
         
@@ -743,12 +746,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

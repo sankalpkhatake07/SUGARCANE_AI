@@ -197,8 +197,8 @@ export const AdminPage = () => {
                         <tr>
                           <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A201C]">User</th>
                           <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A201C]">Disease</th>
-                          <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A201C]">Confidence</th>
                           <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A201C]">Severity</th>
+                          <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A201C]">Treatment</th>
                           <th className="px-6 py-4 text-left text-sm font-semibold text-[#1A201C]">Date</th>
                         </tr>
                       </thead>
@@ -207,12 +207,12 @@ export const AdminPage = () => {
                           <tr key={idx} className="hover:bg-[#F9F8F6] transition-colors">
                             <td className="px-6 py-4 text-sm text-[#1A201C]">{detection.username}</td>
                             <td className="px-6 py-4 text-sm font-medium text-[#2D5A27]">{detection.disease}</td>
-                            <td className="px-6 py-4 text-sm text-[#5C6B61]">{detection.confidence}%</td>
                             <td className="px-6 py-4 text-sm">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(detection.severity)}`}>
                                 {detection.severity}
                               </span>
                             </td>
+                            <td className="px-6 py-4 text-sm text-[#5C6B61] max-w-xs truncate">{detection.treatment}</td>
                             <td className="px-6 py-4 text-sm text-[#5C6B61]">
                               {format(new Date(detection.created_at), 'PP p')}
                             </td>

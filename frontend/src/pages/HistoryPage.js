@@ -119,8 +119,7 @@ export const HistoryPage = () => {
                         </div>
                       </div>
                       <div className="mt-3">
-                        <p className="text-sm text-[#5C6B61]"><span className="font-medium text-[#1A201C]">{t('confidence')}:</span> {item.confidence}%</p>
-                        <p className="text-sm text-[#5C6B61] mt-1"><span className="font-medium text-[#1A201C]">{t('treatment')}:</span> {item.treatment}</p>
+                        <p className="text-sm text-[#5C6B61]"><span className="font-medium text-[#1A201C]">{t('treatment')}:</span> {item.treatment}</p>
                       </div>
                     </div>
                   </div>
