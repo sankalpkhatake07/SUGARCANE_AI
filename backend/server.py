@@ -453,6 +453,12 @@ class UserProfile(BaseModel):
     name: Optional[str] = None
     mobile: Optional[str] = None
 
+class AdminReview(BaseModel):
+    action: str  # "approve", "reject"
+    disease: Optional[str] = None  # Admin can correct the disease
+    severity: Optional[str] = None
+    suggestion: Optional[str] = ""
+
 class DetectionResult(BaseModel):
     id: str
     user_id: str
@@ -700,12 +706,14 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
                 "syngenta_products": []
             })
         
-        # Save detection result (NO confidence shown to user)
+        # Save detection result as PENDING (admin must approve before farmer sees it)
         detection_doc = {
             "id": image_id,
             "user_id": current_user["id"],
             "username": current_user["username"],
             "image_path": storage_result["path"],
+            "ai_disease": final_disease,
+            "ai_severity": final_severity,
             "disease": final_disease,
             "severity": final_severity,
             "treatment": disease_info["treatment"],
@@ -713,6 +721,10 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
             "symptoms": disease_info["symptoms"],
             "causes": disease_info["causes"],
             "prevention": disease_info["prevention"],
+            "status": "pending",
+            "admin_suggestion": "",
+            "reviewed_by": "",
+            "reviewed_at": "",
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         
@@ -817,6 +829,66 @@ async def download_all_images(current_user: dict = Depends(get_current_user)):
         media_type="application/zip",
         headers={"Content-Disposition": f"attachment; filename=sugarcane_images_{timestamp_now}.zip"}
     )
+
+@api_router.get("/admin/pending")
+async def get_pending_reviews(current_user: dict = Depends(get_current_user)):
+    """Admin: Get all pending scans awaiting review"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    pending = await db.detections.find(
+        {"status": "pending"},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    return pending
+
+@api_router.post("/admin/review/{detection_id}")
+async def review_detection(detection_id: str, review: AdminReview, current_user: dict = Depends(get_current_user)):
+    """Admin: Approve or reject a detection with optional corrections and suggestions"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    detection = await db.detections.find_one({"id": detection_id}, {"_id": 0})
+    if not detection:
+        raise HTTPException(status_code=404, detail="Detection not found")
+    
+    if review.action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Action must be 'approve' or 'reject'")
+    
+    update_data = {
+        "status": "approved" if review.action == "approve" else "rejected",
+        "admin_suggestion": review.suggestion or "",
+        "reviewed_by": current_user["username"],
+        "reviewed_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # If admin corrected the disease
+    if review.action == "approve" and review.disease:
+        corrected_disease = review.disease
+        # Look up disease info for the corrected disease
+        disease_info = None
+        for key, val in DISEASE_INFO.items():
+            if key.lower() == corrected_disease.lower():
+                disease_info = val
+                corrected_disease = key
+                break
+        if disease_info:
+            update_data["disease"] = corrected_disease
+            update_data["treatment"] = disease_info["treatment"]
+            update_data["syngenta_products"] = disease_info["syngenta_products"]
+            update_data["symptoms"] = disease_info["symptoms"]
+            update_data["causes"] = disease_info["causes"]
+            update_data["prevention"] = disease_info["prevention"]
+        else:
+            update_data["disease"] = corrected_disease
+    
+    if review.action == "approve" and review.severity:
+        update_data["severity"] = review.severity
+    
+    await db.detections.update_one({"id": detection_id}, {"$set": update_data})
+    
+    updated = await db.detections.find_one({"id": detection_id}, {"_id": 0})
+    return updated
 
 app.include_router(api_router)
 

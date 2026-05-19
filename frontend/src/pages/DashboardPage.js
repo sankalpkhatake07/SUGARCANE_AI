@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Layout } from '../components/Layout';
 import { useTranslation } from 'react-i18next';
-import { UploadSimple, Camera, Scan, CheckCircle, Warning, Info } from '@phosphor-icons/react';
+import { UploadSimple, Scan, CheckCircle, Warning, Info, Clock, PaperPlaneTilt } from '@phosphor-icons/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
@@ -21,16 +21,12 @@ export const DashboardPage = () => {
       setSelectedFile(file);
       setResult(null);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
+      reader.onloadend = () => setPreview(reader.result);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
+  const handleDragOver = (e) => e.preventDefault();
 
   const handleDrop = (e) => {
     e.preventDefault();
@@ -39,20 +35,16 @@ export const DashboardPage = () => {
       setSelectedFile(file);
       setResult(null);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
+      reader.onloadend = () => setPreview(reader.result);
       reader.readAsDataURL(file);
     }
   };
 
   const handleDetect = async () => {
     if (!selectedFile) return;
-
     setDetecting(true);
     const formData = new FormData();
     formData.append('file', selectedFile);
-
     try {
       const { data } = await axios.post(`${API_URL}/api/detect`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -67,22 +59,10 @@ export const DashboardPage = () => {
     }
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity) {
-      case 'high': return { bg: '#FDF0EF', text: '#D9534F', border: '#D9534F' };
-      case 'medium': return { bg: '#FEF8ED', text: '#F5A623', border: '#F5A623' };
-      case 'low': return { bg: '#EFF8EF', text: '#5CB85C', border: '#5CB85C' };
-      default: return { bg: '#F9F8F6', text: '#5C6B61', border: '#DDE3DA' };
-    }
-  };
-
-  const getSeverityIcon = (severity) => {
-    switch (severity) {
-      case 'high': return <Warning size={24} weight="fill" />;
-      case 'medium': return <Info size={24} weight="fill" />;
-      case 'low': return <CheckCircle size={24} weight="fill" />;
-      default: return <Info size={24} />;
-    }
+  const handleNewScan = () => {
+    setSelectedFile(null);
+    setPreview(null);
+    setResult(null);
   };
 
   return (
@@ -103,8 +83,8 @@ export const DashboardPage = () => {
                 data-testid="upload-zone"
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-[#8B9D77] bg-[#E8ECE5]/50 rounded-2xl min-h-[300px] flex items-center justify-center cursor-pointer hover:bg-[#E8ECE5] transition-all"
+                onClick={() => !result && fileInputRef.current?.click()}
+                className={`border-2 border-dashed border-[#8B9D77] bg-[#E8ECE5]/50 rounded-2xl min-h-[300px] flex items-center justify-center transition-all ${!result ? 'cursor-pointer hover:bg-[#E8ECE5]' : ''}`}
               >
                 {preview ? (
                   <div className="relative w-full h-full p-4">
@@ -118,32 +98,37 @@ export const DashboardPage = () => {
                   </div>
                 )}
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
 
-              <button
-                data-testid="detect-button"
-                onClick={handleDetect}
-                disabled={!selectedFile || detecting}
-                className="w-full bg-[#2D5A27] hover:bg-[#24481F] text-white py-4 rounded-xl font-semibold text-lg flex items-center justify-center space-x-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-95"
-              >
-                {detecting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-white"></div>
-                    <span>{t('analyzing')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Scan size={24} />
-                    <span>{t('detectDisease')}</span>
-                  </>
-                )}
-              </button>
+              {!result ? (
+                <button
+                  data-testid="detect-button"
+                  onClick={handleDetect}
+                  disabled={!selectedFile || detecting}
+                  className="w-full bg-[#2D5A27] hover:bg-[#24481F] text-white py-4 rounded-xl font-semibold text-lg flex items-center justify-center space-x-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-95"
+                >
+                  {detecting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-white"></div>
+                      <span>{t('analyzing')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Scan size={24} />
+                      <span>{t('detectDisease')}</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  data-testid="new-scan-button"
+                  onClick={handleNewScan}
+                  className="w-full bg-[#5C6B61] hover:bg-[#4A564F] text-white py-4 rounded-xl font-semibold text-lg flex items-center justify-center space-x-3 transition-all shadow-lg hover:shadow-xl active:scale-95"
+                >
+                  <Scan size={24} />
+                  <span>New Scan</span>
+                </button>
+              )}
             </div>
 
             {/* Results Section */}
@@ -155,66 +140,23 @@ export const DashboardPage = () => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
                     data-testid="detection-result"
-                    className="bg-white rounded-2xl shadow-lg p-6 space-y-6"
+                    className="bg-white rounded-2xl shadow-lg p-6 space-y-5"
                   >
-                    <div className="flex items-start justify-between">
+                    {/* Submitted for Review Banner */}
+                    <div className="bg-[#FEF8ED] border-2 border-[#F5A623] rounded-xl p-5 flex items-start space-x-4">
+                      <Clock size={32} className="text-[#F5A623] flex-shrink-0 mt-0.5" weight="fill" />
                       <div>
-                        <h2 className="text-2xl font-bold text-[#1A201C]" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                          {t('diseaseDetected')}
-                        </h2>
-                        <p data-testid="disease-name" className="text-3xl font-bold text-[#2D5A27] mt-2">
-                          {result.disease}
+                        <h3 className="text-lg font-bold text-[#1A201C]">Submitted for Review</h3>
+                        <p className="text-sm text-[#5C6B61] mt-1">
+                          Your scan has been submitted. An admin will review the results and may add suggestions. 
+                          You will see the full diagnosis once it is approved.
                         </p>
                       </div>
-                      <div
-                        style={{
-                          backgroundColor: getSeverityColor(result.severity).bg,
-                          color: getSeverityColor(result.severity).text,
-                          borderColor: getSeverityColor(result.severity).border
-                        }}
-                        className="px-4 py-2 rounded-full flex items-center space-x-2 border-2"
-                      >
-                        {getSeverityIcon(result.severity)}
-                        <span className="font-bold text-sm uppercase">{t(result.severity)}</span>
-                      </div>
                     </div>
 
-                    <div className="border-t border-[#DDE3DA] pt-4">
-                      <div className="space-y-4">
-                      <div>
-                        <h3 className="font-semibold text-[#1A201C] mb-2">{t('symptoms')}</h3>
-                        <p className="text-[#5C6B61] text-sm leading-relaxed">{result.symptoms}</p>
-                      </div>
-
-                      <div>
-                        <h3 className="font-semibold text-[#1A201C] mb-2">{t('causes')}</h3>
-                        <p className="text-[#5C6B61] text-sm leading-relaxed">{result.causes}</p>
-                      </div>
-
-                      <div>
-                        <h3 className="font-semibold text-[#1A201C] mb-2">{t('treatment')}</h3>
-                        <p className="text-[#5C6B61] text-sm leading-relaxed">{result.treatment}</p>
-                      </div>
-
-                      <div>
-                        <h3 className="font-semibold text-[#1A201C] mb-2">{t('prevention')}</h3>
-                        <p className="text-[#5C6B61] text-sm leading-relaxed">{result.prevention}</p>
-                      </div>
-
-                      {result.syngenta_products && result.syngenta_products.length > 0 && (
-                        <div className="bg-[#E8ECE5] rounded-xl p-4">
-                          <h3 className="font-semibold text-[#2D5A27] mb-3">{t('recommendedProducts')}</h3>
-                          <div className="space-y-2">
-                            {result.syngenta_products.map((product, idx) => (
-                              <div key={idx} className="flex items-center space-x-2">
-                                <CheckCircle size={18} className="text-[#2D5A27]" weight="fill" />
-                                <span className="text-[#1A201C] font-medium">{product}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <div className="flex items-center space-x-3 text-[#5C6B61]">
+                      <PaperPlaneTilt size={20} weight="fill" className="text-[#2D5A27]" />
+                      <span className="text-sm">AI has analyzed your image. Waiting for admin verification.</span>
                     </div>
                   </motion.div>
                 )}
