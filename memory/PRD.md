@@ -1,18 +1,18 @@
 # Sugarcane Disease Analysis - Product Requirements Document
 
 ## Original Problem Statement
-Build a sugarcane disease analysis website using a custom YOLO model (`best.pt`) alongside an AI vision model (GPT-5.1 Vision). Compare predictions internally and display only the final result to the user without confidence scores.
+Build a sugarcane disease analysis website using a custom YOLO model (`best.pt`) alongside an AI vision model (GPT-5.1 Vision). Compare predictions internally and display only the final result to the user without confidence scores. Admin approval workflow required before farmers see results.
 
 ## Core Requirements
 - Green/earthy color theme
 - Dashboard to upload/capture images and predict diseases
-- Results show: disease name, severity, treatment tips, recommended Syngenta products
-- History page with past scans and thumbnails
-- Disease Info page with symptoms/causes/preventions for all diseases
+- Admin approval workflow: farmer uploads -> AI detects -> admin reviews/approves/rejects -> farmer sees results
+- Results show: disease name, severity, treatment tips, recommended Syngenta products, admin suggestions
+- History page with status badges (Pending/Approved/Rejected)
+- Disease Info page with symptoms/causes/preventions
 - Multi-language support: English, Hindi, Marathi
-- Two login types: Admin (admin/ADT@123) and User (username/password registration)
+- Two login types: Admin (admin/ADT@123) and User (username/password)
 - No confidence scores shown to end users
-- Dual-model comparison: YOLO + GPT-5.1 Vision (internal, not shown to user)
 - Admin can download all uploaded images as ZIP
 
 ## Tech Stack
@@ -24,49 +24,48 @@ Build a sugarcane disease analysis website using a custom YOLO model (`best.pt`)
 
 ## What's Been Implemented
 
-### Completed (2026-04-03)
+### Completed
 - Full-stack scaffolding (FastAPI + React + MongoDB)
 - Admin and User authentication (JWT, cookies)
-- Admin seed on startup
 - Dashboard with drag-drop image upload
 - Dual-model detection pipeline: YOLO (primary) + GPT-5.1 Vision (verifier)
-- Improved GPT-5.1 prompt with detailed visual descriptions per disease
-- Smart comparison logic: YOLO primary >=40%, GPT fallback >=75%, confidence-based tiebreaker
-- Detection results: disease, severity, treatment, symptoms, causes, prevention, Syngenta products
-- History page with thumbnails and search
-- Disease Info library page (18 diseases)
-- Admin panel with stats, users, detections
-- Admin-only ZIP download of all uploaded images (organized by disease folder)
-- Language toggle (EN, Hindi, Marathi) with i18n
-- No confidence scores displayed anywhere
-- AWS Deployment Guide
-- YOLO bounding box data collected (ready for frontend overlay)
+- **Admin Approval Workflow**:
+  - Farmer uploads -> saved as "pending"
+  - Dashboard shows "Submitted for Review" message
+  - Admin sees pending scans in "Pending Reviews" tab
+  - Admin can approve (with disease correction + severity + suggestion) or reject (with note)
+  - Farmer sees results only after admin approval
+  - History shows Pending/Approved/Rejected status badges
+  - Expandable history items for approved scans (symptoms, treatment, prevention, admin suggestion)
+- Admin-only ZIP download of all uploaded images
+- Language toggle (EN, Hindi, Marathi)
+- Disease Info library (18 diseases)
+- No confidence scores displayed
 
-## Detection Pipeline Logic
-1. YOLO runs with conf=0.15 threshold, picks highest confidence detection
-2. GPT-5.1 Vision analyzes same image with detailed disease guide prompt
-3. Comparison: Both agree -> use shared | YOLO >=40% -> trust YOLO | GPT >=75% & YOLO weak -> trust GPT | Both uncertain -> higher confidence wins
-4. Disease info looked up case-insensitively from DISEASE_INFO dict
-
-## Pending/Upcoming Tasks
-- P1: Highlight affected areas on uploaded images (YOLO bounding boxes overlay on frontend)
-- P2: Camera capture feature (currently upload-only)
-- P2: Backend code refactoring (extract routes into separate files)
+## Detection Flow
+1. Farmer uploads image -> AI runs dual detection (YOLO + GPT-5.1)
+2. Result saved as `status: "pending"` with `ai_disease` and `ai_severity`
+3. Farmer sees "Submitted for Review" (no disease details)
+4. Admin reviews in "Pending Reviews" tab - sees AI prediction, image, farmer name
+5. Admin approves/corrects/adds suggestion OR rejects with note
+6. Farmer sees full results only after approval
 
 ## Key Endpoints
-- POST /api/auth/register
-- POST /api/auth/login
-- POST /api/auth/logout
-- GET /api/auth/me
+- POST /api/auth/register, POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me
 - PUT /api/profile
-- POST /api/detect
-- GET /api/history
+- POST /api/detect (saves as pending)
+- GET /api/history (farmer's scans with status)
 - GET /api/files/{path}
 - GET /api/diseases
-- GET /api/admin/users
-- GET /api/admin/detections
-- GET /api/admin/stats
-- GET /api/admin/download-images (admin-only, returns ZIP)
+- GET /api/admin/users, GET /api/admin/detections, GET /api/admin/stats
+- GET /api/admin/pending (pending scans for review)
+- POST /api/admin/review/{id} (approve/reject with corrections)
+- GET /api/admin/download-images (ZIP download)
 
-## YOLO Model Classes (best.pt - 15 classes)
-Early Shoot Borer, Grassy Shoot Disease, Mites, Mosaic, Pokkah Boeng, Red Rot, Whiplash Smut, Woolly Aphids, Brown Rust, Brown Spot, Eye Spot, Internode Borer, Leaf Footed Bug, Pyrilla, Scale Insect
+## Database Schema - detections collection
+id, user_id, username, image_path, ai_disease, ai_severity, disease, severity, treatment, syngenta_products, symptoms, causes, prevention, status (pending/approved/rejected), admin_suggestion, reviewed_by, reviewed_at, created_at
+
+## Pending/Upcoming Tasks
+- P1: Highlight affected areas on images (YOLO bounding boxes on frontend)
+- P2: Camera capture feature
+- P2: Backend refactoring
