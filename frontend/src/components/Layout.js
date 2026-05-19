@@ -62,18 +62,20 @@ export const Layout = ({ children }) => {
                 <ClockCounterClockwise size={20} weight={isActive('/history') ? 'fill' : 'regular'} />
                 <span>{t('history')}</span>
               </Link>
-              <Link
-                to="/diseases"
-                data-testid="nav-diseases"
-                className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
-                  isActive('/diseases')
-                    ? 'bg-[#E8ECE5] text-[#2D5A27]'
-                    : 'text-[#5C6B61] hover:bg-[#F9F8F6]'
-                }`}
-              >
-                <BookOpen size={20} weight={isActive('/diseases') ? 'fill' : 'regular'} />
-                <span>{t('diseases')}</span>
-              </Link>
+              {user?.role === 'admin' && (
+                <Link
+                  to="/diseases"
+                  data-testid="nav-diseases"
+                  className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
+                    isActive('/diseases')
+                      ? 'bg-[#E8ECE5] text-[#2D5A27]'
+                      : 'text-[#5C6B61] hover:bg-[#F9F8F6]'
+                  }`}
+                >
+                  <BookOpen size={20} weight={isActive('/diseases') ? 'fill' : 'regular'} />
+                  <span>{t('diseases')}</span>
+                </Link>
+              )}
               {user?.role === 'admin' && (
                 <Link
                   to="/admin"

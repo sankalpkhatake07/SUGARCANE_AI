@@ -24,7 +24,7 @@ function App() {
             <Route path="/profile-setup" element={<ProtectedRoute><ProfileSetupPage /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-            <Route path="/diseases" element={<ProtectedRoute><DiseasesPage /></ProtectedRoute>} />
+            <Route path="/diseases" element={<ProtectedRoute adminOnly><DiseasesPage /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
