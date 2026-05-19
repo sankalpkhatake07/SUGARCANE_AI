@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout } from '../components/Layout';
 import { useTranslation } from 'react-i18next';
-import { UserGear, Users, Scan, ChartPie, DownloadSimple, CheckCircle, XCircle, Clock, PencilSimple } from '@phosphor-icons/react';
+import { UserGear, Users, Scan, ChartPie, DownloadSimple, CheckCircle, XCircle, Clock, PencilSimple, ClockCounterClockwise } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { format } from 'date-fns';
@@ -195,7 +195,7 @@ export const AdminPage = () => {
 
               {/* Tabs */}
               <div className="flex space-x-1 mb-6 border-b border-[#DDE3DA]">
-                {['pending', 'overview', 'users', 'scans'].map(tab => (
+                {['pending', 'reviewed', 'overview', 'users', 'scans'].map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -203,7 +203,7 @@ export const AdminPage = () => {
                       activeTab === tab ? 'text-[#2D5A27] border-b-2 border-[#2D5A27]' : 'text-[#5C6B61] hover:text-[#1A201C]'
                     }`}
                   >
-                    {tab === 'pending' ? `Pending Reviews (${pending.length})` : tab === 'scans' ? 'All Scans' : tab}
+                    {tab === 'pending' ? `Pending Reviews (${pending.length})` : tab === 'reviewed' ? `Reviewed (${detections.filter(d => d.status === 'approved' || d.status === 'rejected').length})` : tab === 'scans' ? 'All Scans' : tab}
                   </button>
                 ))}
               </div>
@@ -339,6 +339,66 @@ export const AdminPage = () => {
                                     </button>
                                   </div>
                                 </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* REVIEWED HISTORY TAB */}
+              {activeTab === 'reviewed' && (
+                <div className="space-y-4">
+                  {detections.filter(d => d.status === 'approved' || d.status === 'rejected').length === 0 ? (
+                    <div className="bg-white rounded-xl shadow-md p-12 text-center">
+                      <ClockCounterClockwise size={64} className="mx-auto text-[#DDE3DA] mb-4" />
+                      <p className="text-lg font-medium text-[#1A201C]">No reviewed scans yet</p>
+                      <p className="text-[#5C6B61] mt-1">Scans you approve or reject will appear here.</p>
+                    </div>
+                  ) : (
+                    detections.filter(d => d.status === 'approved' || d.status === 'rejected').map((item) => (
+                      <div key={item.id} data-testid={`reviewed-item-${item.id}`} className="bg-white rounded-xl shadow-md overflow-hidden">
+                        <div className="p-6">
+                          <div className="flex gap-6">
+                            <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0 bg-[#E8ECE5]">
+                              <img src={`${API_URL}/api/files/${item.image_path}`} alt="scan" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <p className="text-sm text-[#5C6B61]">Farmer: <span className="font-semibold text-[#1A201C]">{item.username}</span></p>
+                                  <p className="text-xs text-[#5C6B61]">{format(new Date(item.created_at), 'PPpp')}</p>
+                                </div>
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                                  item.status === 'approved' 
+                                    ? 'bg-[#EFF8EF] text-[#2D5A27] border-[#5CB85C]' 
+                                    : 'bg-[#FDF0EF] text-[#D9534F] border-[#D9534F]'
+                                }`}>
+                                  {item.status === 'approved' ? 'Approved' : 'Rejected'}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="text-lg font-bold text-[#2D5A27]">{item.disease}</span>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getSeverityColor(item.severity)}`}>{item.severity}</span>
+                              </div>
+
+                              {item.ai_disease && item.ai_disease !== item.disease && (
+                                <p className="text-xs text-[#5C6B61] mb-1">AI predicted: <span className="line-through">{item.ai_disease}</span> → Corrected to: <span className="font-semibold text-[#2D5A27]">{item.disease}</span></p>
+                              )}
+
+                              {item.admin_suggestion && (
+                                <div className="bg-[#E8F0FE] border border-[#4A90D9] rounded-lg p-3 mt-2">
+                                  <p className="text-xs font-semibold text-[#4A90D9] uppercase mb-1">Your Suggestion</p>
+                                  <p className="text-sm text-[#5C6B61]">{item.admin_suggestion}</p>
+                                </div>
+                              )}
+
+                              {item.reviewed_at && (
+                                <p className="text-xs text-[#5C6B61] mt-2">Reviewed on {format(new Date(item.reviewed_at), 'PPpp')}</p>
                               )}
                             </div>
                           </div>
