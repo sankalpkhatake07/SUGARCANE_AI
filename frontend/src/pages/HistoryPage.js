@@ -30,9 +30,9 @@ export const HistoryPage = () => {
 
   const getStatusStyle = (status) => {
     switch (status) {
-      case 'approved': return { bg: 'bg-[#EFF8EF]', text: 'text-[#2D5A27]', border: 'border-[#5CB85C]', label: 'Approved' };
-      case 'rejected': return { bg: 'bg-[#FDF0EF]', text: 'text-[#D9534F]', border: 'border-[#D9534F]', label: 'Rejected' };
-      default: return { bg: 'bg-[#FEF8ED]', text: 'text-[#F5A623]', border: 'border-[#F5A623]', label: 'Pending Review' };
+      case 'approved': return { bg: 'bg-[#EFF8EF]', text: 'text-[#2D5A27]', border: 'border-[#5CB85C]', label: t('approved') };
+      case 'rejected': return { bg: 'bg-[#FDF0EF]', text: 'text-[#D9534F]', border: 'border-[#D9534F]', label: t('rejected') };
+      default: return { bg: 'bg-[#FEF8ED]', text: 'text-[#F5A623]', border: 'border-[#F5A623]', label: t('pendingReview') };
     }
   };
 
@@ -67,7 +67,7 @@ export const HistoryPage = () => {
               <h1 className="text-4xl sm:text-5xl font-bold text-[#1A201C]" style={{ fontFamily: 'Outfit, sans-serif' }}>
                 {t('scanHistory')}
               </h1>
-              <p className="text-base text-[#5C6B61] mt-2">View your submitted scans and approved results</p>
+              <p className="text-base text-[#5C6B61] mt-2">{t('historySubtitle')}</p>
             </div>
           </div>
 
@@ -76,7 +76,7 @@ export const HistoryPage = () => {
               <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B9D77]" size={20} />
               <input
                 type="text"
-                placeholder="Search by disease or status..."
+                placeholder={t('searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-[#DDE3DA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D5A27] focus:border-transparent"
@@ -134,9 +134,9 @@ export const HistoryPage = () => {
                                   )}
                                 </h3>
                               ) : status === 'rejected' ? (
-                                <h3 className="text-xl font-bold text-[#D9534F]">Scan Rejected</h3>
+                                <h3 className="text-xl font-bold text-[#D9534F]">{t('scanRejected')}</h3>
                               ) : (
-                                <h3 className="text-xl font-bold text-[#5C6B61]">Awaiting Review</h3>
+                                <h3 className="text-xl font-bold text-[#5C6B61]">{t('awaitingReview')}</h3>
                               )}
                               <p className="text-sm text-[#5C6B61] mt-1">
                                 {format(new Date(item.created_at), 'PPpp')}
@@ -161,10 +161,10 @@ export const HistoryPage = () => {
                             </p>
                           )}
                           {status === 'pending' && (
-                            <p className="text-sm text-[#F5A623] mt-2">Your scan is being reviewed by an admin...</p>
+                            <p className="text-sm text-[#F5A623] mt-2">{t('pendingMsg')}</p>
                           )}
                           {status === 'rejected' && (
-                            <p className="text-sm text-[#D9534F] mt-2">This scan was rejected by the admin.</p>
+                            <p className="text-sm text-[#D9534F] mt-2">{t('rejectedMsg')}</p>
                           )}
                         </div>
                       </div>
@@ -203,7 +203,7 @@ export const HistoryPage = () => {
                           <div className="bg-[#E8F0FE] border border-[#4A90D9] rounded-xl p-4">
                             <div className="flex items-center gap-2 mb-2">
                               <ChatText size={20} weight="fill" className="text-[#4A90D9]" />
-                              <h4 className="font-semibold text-[#1A201C]">Admin Suggestion</h4>
+                              <h4 className="font-semibold text-[#1A201C]">{t('adminSuggestion')}</h4>
                             </div>
                             <p className="text-sm text-[#5C6B61]">{item.admin_suggestion}</p>
                           </div>
@@ -216,7 +216,7 @@ export const HistoryPage = () => {
                       <div className="border-t border-[#DDE3DA] p-6 bg-[#FDF0EF]">
                         <div className="flex items-center gap-2 mb-2">
                           <ChatText size={20} weight="fill" className="text-[#D9534F]" />
-                          <h4 className="font-semibold text-[#1A201C]">Admin Note</h4>
+                          <h4 className="font-semibold text-[#1A201C]">{t('adminNote')}</h4>
                         </div>
                         <p className="text-sm text-[#5C6B61]">{item.admin_suggestion}</p>
                       </div>

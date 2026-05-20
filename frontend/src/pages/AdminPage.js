@@ -238,7 +238,7 @@ export const AdminPage = () => {
                               </div>
 
                               {/* AI Prediction */}
-                              <div className="bg-[#F9F8F6] rounded-lg p-4 mb-4">
+                              <div className="bg-[#F9F8F6] rounded-lg p-4 mb-3">
                                 <p className="text-xs font-semibold text-[#5C6B61] uppercase tracking-wide mb-2">AI Prediction</p>
                                 <div className="flex items-center gap-3">
                                   <span className="text-lg font-bold text-[#2D5A27]">{item.ai_disease || item.disease}</span>
@@ -246,6 +246,33 @@ export const AdminPage = () => {
                                     {item.ai_severity || item.severity}
                                   </span>
                                 </div>
+                              </div>
+
+                              {/* Treatment & Products Recommendation */}
+                              <div className="bg-[#EFF8EF] border border-[#8B9D77] rounded-lg p-4 mb-4 space-y-2">
+                                <p className="text-xs font-semibold text-[#2D5A27] uppercase tracking-wide">Recommended Action</p>
+                                {item.treatment && (
+                                  <div>
+                                    <p className="text-xs font-medium text-[#5C6B61]">Treatment:</p>
+                                    <p className="text-sm text-[#1A201C]">{item.treatment}</p>
+                                  </div>
+                                )}
+                                {item.prevention && (
+                                  <div>
+                                    <p className="text-xs font-medium text-[#5C6B61]">Prevention:</p>
+                                    <p className="text-sm text-[#1A201C]">{item.prevention}</p>
+                                  </div>
+                                )}
+                                {item.syngenta_products && item.syngenta_products.length > 0 && (
+                                  <div>
+                                    <p className="text-xs font-medium text-[#5C6B61]">Recommended Products / Fertilizers:</p>
+                                    <div className="flex flex-wrap gap-1.5 mt-1">
+                                      {item.syngenta_products.map((p, i) => (
+                                        <span key={i} className="bg-white px-2.5 py-1 rounded-full text-xs font-medium text-[#2D5A27] border border-[#2D5A27]">{p}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Action Buttons */}

@@ -13,7 +13,7 @@ export const DashboardPage = () => {
   const [detecting, setDetecting] = useState(false);
   const [result, setResult] = useState(null);
   const fileInputRef = useRef(null);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
@@ -73,7 +73,7 @@ export const DashboardPage = () => {
             {t('dashboard')}
           </h1>
           <p className="text-base text-[#5C6B61] mb-8">
-            Upload or capture a sugarcane leaf image for disease analysis
+            {t('dashboardSubtitle')}
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -126,7 +126,7 @@ export const DashboardPage = () => {
                   className="w-full bg-[#5C6B61] hover:bg-[#4A564F] text-white py-4 rounded-xl font-semibold text-lg flex items-center justify-center space-x-3 transition-all shadow-lg hover:shadow-xl active:scale-95"
                 >
                   <Scan size={24} />
-                  <span>New Scan</span>
+                  <span>{t('newScan')}</span>
                 </button>
               )}
             </div>
@@ -146,17 +146,16 @@ export const DashboardPage = () => {
                     <div className="bg-[#FEF8ED] border-2 border-[#F5A623] rounded-xl p-5 flex items-start space-x-4">
                       <Clock size={32} className="text-[#F5A623] flex-shrink-0 mt-0.5" weight="fill" />
                       <div>
-                        <h3 className="text-lg font-bold text-[#1A201C]">Submitted for Review</h3>
+                        <h3 className="text-lg font-bold text-[#1A201C]">{t('submittedForReview')}</h3>
                         <p className="text-sm text-[#5C6B61] mt-1">
-                          Your scan has been submitted. An admin will review the results and may add suggestions. 
-                          You will see the full diagnosis once it is approved.
+                          {t('submittedMsg')}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center space-x-3 text-[#5C6B61]">
                       <PaperPlaneTilt size={20} weight="fill" className="text-[#2D5A27]" />
-                      <span className="text-sm">AI has analyzed your image. Waiting for admin verification.</span>
+                      <span className="text-sm">{t('aiAnalyzed')}</span>
                     </div>
                   </motion.div>
                 )}
@@ -165,7 +164,7 @@ export const DashboardPage = () => {
               {!result && (
                 <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
                   <Scan size={64} className="mx-auto text-[#DDE3DA] mb-4" />
-                  <p className="text-[#5C6B61]">Upload an image and click detect to see results</p>
+                  <p className="text-[#5C6B61]">{t('uploadAndDetect')}</p>
                 </div>
               )}
             </div>
