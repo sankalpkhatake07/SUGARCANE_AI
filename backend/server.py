@@ -57,21 +57,28 @@ except Exception as e:
     logging.info("Will rely on Gemini Vision API only")
 
 
-# Disease Information Database (18 classes)
+# Disease Information Database with correct active molecules/fertilizers
 DISEASE_INFO = {
     "Early Shoot Borer": {
         "symptoms": "Dead heart formation in young shoots, bore holes in stems, wilting of central shoots",
         "causes": "Caterpillar pest (Chilo infuscatellus), attacks early growth stages",
-        "prevention": "Use resistant varieties, proper field sanitation, timely planting",
-        "treatment": "Apply recommended insecticides, remove and destroy affected shoots",
-        "syngenta_products": ["ACTARA", "AMPLIGO"]
+        "prevention": "Use resistant varieties, proper field sanitation, timely planting, earthing up to cover nodes",
+        "treatment": "Apply recommended insecticides at shoot stage, remove and destroy affected shoots",
+        "syngenta_products": ["Chlorantraniliprole", "Chlorpyrifos", "Fipronil", "Flubendiamide", "Methoxyfenozide", "Thiamethoxam", "Acephate + Imidacloprid", "Bifenthrin + Clothianidin"]
+    },
+    "Top Shoot Borer": {
+        "symptoms": "Dead heart in grown-up canes, bunchy top appearance, internode boring from top",
+        "causes": "Caterpillar pest (Scirpophaga excerptalis), attacks growing point of cane",
+        "prevention": "Detrash lower leaves, remove and destroy egg masses, use light traps",
+        "treatment": "Apply granular insecticides in leaf whorl, remove affected tops",
+        "syngenta_products": ["Carbofuran", "Chlorantraniliprole"]
     },
     "Grassy Shoot Disease": {
         "symptoms": "Multiple thin shoots from single stool, pale yellow leaves, reduced cane diameter",
         "causes": "Phytoplasma infection transmitted by leafhopper vectors",
         "prevention": "Control vector populations, use disease-free planting material, remove infected plants",
-        "treatment": "Rogue out diseased plants, spray insecticides to control vectors",
-        "syngenta_products": ["ACTARA", "CHESS"]
+        "treatment": "Rogue out diseased plants, spray insecticides to control vectors, no chemical cure",
+        "syngenta_products": []
     },
     "Healthy": {
         "symptoms": "No visible disease symptoms, vibrant green leaves, normal growth",
@@ -84,106 +91,155 @@ DISEASE_INFO = {
         "symptoms": "Silvering or bronzing of leaves, fine webbing, leaf curling, reduced vigor",
         "causes": "Spider mite infestation, hot and dry weather conditions favor buildup",
         "prevention": "Regular monitoring, maintain adequate moisture, encourage natural predators",
-        "treatment": "Apply acaricides, ensure proper water management",
-        "syngenta_products": ["VERTIMEC", "PROCLAIM"]
+        "treatment": "Apply acaricides, ensure proper water management, spray with recommended chemicals",
+        "syngenta_products": []
     },
     "Mosaic": {
-        "symptoms": "Yellow-green mottling on leaves, stunted growth, reduced yield",
-        "causes": "Viral infection transmitted by aphid vectors",
+        "symptoms": "Yellow-green mottling on leaves, stunted growth, reduced yield, irregular chlorotic patches",
+        "causes": "Viral infection (Sugarcane Mosaic Virus) transmitted by aphid vectors",
         "prevention": "Use virus-free planting material, control aphid populations, remove infected plants",
-        "treatment": "No cure; remove and destroy infected plants, control vector insects",
-        "syngenta_products": ["ACTARA", "CHESS"]
+        "treatment": "No chemical cure; remove and destroy infected plants, control vector insects",
+        "syngenta_products": []
     },
     "Pokkah Boeng": {
-        "symptoms": "Top leaves twisted and crinkled, knife-like cuts on unfurled leaves, tip rot",
+        "symptoms": "Top leaves twisted and crinkled, knife-like cuts on unfurled leaves, tip rot, malformed shoots",
         "causes": "Fungal infection (Fusarium species), favored by wet conditions and wounds",
-        "prevention": "Avoid mechanical injuries, use resistant varieties, proper drainage",
-        "treatment": "Apply fungicides, improve drainage, remove severely affected plants",
-        "syngenta_products": ["AMISTAR", "SCORE"]
+        "prevention": "Avoid mechanical injuries, use resistant varieties, proper drainage, field sanitation",
+        "treatment": "Remove severely affected plants, improve drainage, no specific chemical control",
+        "syngenta_products": []
     },
     "Red Rot": {
-        "symptoms": "Reddening of internal tissues, withering of leaves, sour smell from affected stalks",
+        "symptoms": "Reddening of internal tissues, withering of leaves, sour smell from affected stalks, white patches in red tissue",
         "causes": "Fungal infection (Colletotrichum falcatum), waterlogged conditions, wounded stalks",
-        "prevention": "Use resistant varieties, proper drainage, avoid injuries during harvesting",
-        "treatment": "Remove infected plants, apply fungicides",
-        "syngenta_products": ["AMISTAR TOP", "SCORE"]
+        "prevention": "Use resistant varieties, proper drainage, avoid injuries during harvesting, hot water treatment of setts",
+        "treatment": "Remove infected plants, apply recommended fungicides, avoid ratoon from infected fields",
+        "syngenta_products": ["Azoxystrobin + Difenoconazole"]
     },
     "Whiplash Smut": {
-        "symptoms": "Whip-like structure emerges from shoot apex, black spore mass, stunted growth",
-        "causes": "Fungal infection (Sporisorium scitamineum), spread through soil and infected sets",
-        "prevention": "Use disease-free setts, hot water treatment of setts, crop rotation",
-        "treatment": "Rogue out infected plants immediately, apply systemic fungicides",
-        "syngenta_products": ["TILT", "BANKO PLUS"]
+        "symptoms": "Whip-like structure emerges from shoot apex, black spore mass, stunted growth, grass-like tillers",
+        "causes": "Fungal infection (Sporisorium scitamineum), spread through soil and infected setts",
+        "prevention": "Use disease-free setts, hot water treatment of setts, crop rotation, remove smut whips before spores spread",
+        "treatment": "Rogue out infected plants immediately, apply systemic fungicides, destroy smut whips",
+        "syngenta_products": []
     },
     "Woolly Aphids": {
-        "symptoms": "White cottony masses on stems and leaves, honeydew secretion, sooty mold",
+        "symptoms": "White cottony masses on stems and leaves, honeydew secretion, sooty mold growth, leaf yellowing",
         "causes": "Aphid infestation (Ceratovacuna lanigera), sap-sucking pest",
-        "prevention": "Regular scouting, encourage natural enemies, avoid excess nitrogen",
-        "treatment": "Apply systemic insecticides, spray with recommended chemicals",
-        "syngenta_products": ["ACTARA", "CHESS"]
+        "prevention": "Regular scouting, encourage natural enemies, avoid excess nitrogen fertilization",
+        "treatment": "Apply systemic insecticides, spray with recommended chemicals, release biocontrol agents",
+        "syngenta_products": []
     },
     "Black Aphid": {
-        "symptoms": "Dark aphids clustered on leaves and stems, leaf curling, stunted growth, honeydew",
+        "symptoms": "Dark aphids clustered on leaves and stems, leaf curling, stunted growth, honeydew and sooty mold",
         "causes": "Black aphid infestation, rapid multiplication in favorable conditions",
         "prevention": "Monitor regularly, use yellow sticky traps, conserve natural enemies",
         "treatment": "Apply contact or systemic insecticides when threshold is exceeded",
-        "syngenta_products": ["ACTARA", "CHESS"]
+        "syngenta_products": []
+    },
+    "Aphids": {
+        "symptoms": "Colonies of small insects on leaves and stems, leaf curling, honeydew, sooty mold, stunted growth",
+        "causes": "Various aphid species feeding on plant sap, rapid multiplication in warm weather",
+        "prevention": "Monitor regularly, conserve natural enemies (ladybugs, parasitic wasps), avoid excess nitrogen",
+        "treatment": "Apply systemic insecticides when population exceeds economic threshold",
+        "syngenta_products": []
     },
     "Brown Rust": {
-        "symptoms": "Brown pustules on leaf surfaces, premature drying of leaves, reduced photosynthesis",
-        "causes": "Fungal infection (Puccinia melanocephala), favored by humid conditions",
-        "prevention": "Use resistant varieties, adequate plant spacing, remove crop residues",
+        "symptoms": "Brown/orange pustules on leaf surfaces, premature drying of leaves, reduced photosynthesis, yellow halos",
+        "causes": "Fungal infection (Puccinia melanocephala), favored by humid conditions and moderate temperatures",
+        "prevention": "Use resistant varieties, adequate plant spacing, remove crop residues, avoid overhead irrigation",
         "treatment": "Apply fungicides at early disease stage, ensure proper air circulation",
-        "syngenta_products": ["AMISTAR", "REVUS"]
+        "syngenta_products": ["Azoxystrobin + Difenoconazole"]
+    },
+    "Orange Rust": {
+        "symptoms": "Orange-colored pustules on leaf undersurface, elongated lesions, premature leaf senescence",
+        "causes": "Fungal infection (Puccinia kuehnii), spread by wind-borne spores, favored by warm humid conditions",
+        "prevention": "Use resistant varieties, proper spacing for air movement, remove infected debris",
+        "treatment": "Apply foliar fungicides at early onset, improve field drainage",
+        "syngenta_products": ["Azoxystrobin + Difenoconazole"]
     },
     "Brown Spot": {
-        "symptoms": "Brown spots with yellow halos on leaves, lesions may coalesce, leaf blight",
+        "symptoms": "Brown spots with yellow halos on leaves, lesions may coalesce, leaf blight in severe cases",
         "causes": "Fungal infection (Helminthosporium species), moisture and high humidity",
         "prevention": "Proper spacing for air circulation, avoid overhead irrigation, use resistant varieties",
         "treatment": "Apply protective fungicides, remove infected plant debris",
-        "syngenta_products": ["AMISTAR", "BANKO PLUS"]
+        "syngenta_products": []
     },
     "Eye Spot": {
-        "symptoms": "Oval to elongated spots with yellow margins on leaves, reddish-brown centers",
-        "causes": "Fungal infection (Bipolaris sacchari), warm humid weather",
+        "symptoms": "Oval to elongated spots with yellow margins on leaves, reddish-brown centers, eye-shaped lesions",
+        "causes": "Fungal infection (Bipolaris sacchari), warm humid weather promotes disease",
         "prevention": "Use clean planting material, ensure good drainage, crop rotation",
         "treatment": "Spray recommended fungicides, remove and destroy infected leaves",
-        "syngenta_products": ["SCORE", "AMISTAR"]
+        "syngenta_products": []
     },
     "Internode Borer": {
-        "symptoms": "Bore holes in internodes, internal tunneling, breakage of stems, oozing from holes",
+        "symptoms": "Bore holes in internodes, internal tunneling, breakage of stems, frass at entry points",
         "causes": "Caterpillar pest boring into stems, multiple generations per season",
-        "prevention": "Regular field inspection, use pheromone traps, maintain field hygiene",
+        "prevention": "Regular field inspection, use pheromone traps, maintain field hygiene, detrash regularly",
         "treatment": "Apply insecticides targeting borers, destroy stubbles after harvest",
-        "syngenta_products": ["AMPLIGO", "PROCLAIM"]
+        "syngenta_products": []
     },
     "Leaf Footed Bug": {
-        "symptoms": "Yellowing and wilting of shoots, sap extraction damage, distorted growth",
+        "symptoms": "Yellowing and wilting of shoots, sap extraction damage, distorted growth, feeding marks on stems",
         "causes": "True bug feeding on plant sap, can transmit diseases",
-        "prevention": "Remove alternate hosts, use row covers, regular monitoring",
+        "prevention": "Remove alternate hosts, use row covers, regular monitoring of field borders",
         "treatment": "Apply contact insecticides when populations are high",
-        "syngenta_products": ["ACTARA", "AMPLIGO"]
+        "syngenta_products": []
     },
     "Pyrilla": {
-        "symptoms": "White waxy covering on leaves, honeydew secretion leading to sooty mold, reduced vigor",
+        "symptoms": "White waxy covering on leaves, honeydew secretion leading to sooty mold, reduced vigor, nymphs on leaf surface",
         "causes": "Pyrilla perpusilla (sugarcane planthopper), sap-sucking insect pest",
-        "prevention": "Monitor pest population, conserve natural enemies (parasitoids), avoid water stress",
-        "treatment": "Spray insecticides when economic threshold is reached",
-        "syngenta_products": ["ACTARA", "CHESS"]
+        "prevention": "Monitor pest population, conserve natural enemies (Epiricania parasitoid), avoid water stress",
+        "treatment": "Spray insecticides when economic threshold is reached, release Epiricania melanoleuca",
+        "syngenta_products": ["Chlorpyrifos", "Acephate + Imidacloprid"]
     },
     "Scale Insect": {
-        "symptoms": "Scale-covered insects on stems and leaves, yellowing, reduced plant vigor, sooty mold",
+        "symptoms": "Scale-covered insects on stems and leaves, yellowing, reduced plant vigor, sooty mold on honeydew",
         "causes": "Scale insect infestation, armored or soft scales feeding on sap",
         "prevention": "Maintain field sanitation, encourage natural predators, avoid water stress",
         "treatment": "Apply systemic insecticides or horticultural oils",
-        "syngenta_products": ["ACTARA", "VERTIMEC"]
+        "syngenta_products": []
     },
     "Wilt": {
         "symptoms": "Sudden wilting and drying of leaves, yellowing, vascular discoloration, plant death",
         "causes": "Fungal or bacterial wilt pathogens, waterlogging, root damage",
         "prevention": "Use disease-free setts, ensure proper drainage, avoid injuries to roots",
         "treatment": "Remove and destroy infected plants, apply soil drenching with recommended chemicals",
-        "syngenta_products": ["AMISTAR", "SCORE"]
+        "syngenta_products": []
+    },
+    "Yellow Leaf Disease": {
+        "symptoms": "Yellowing of midrib and surrounding leaf tissue, gradual drying from tip downward, stunted growth",
+        "causes": "Sugarcane Yellow Leaf Virus (ScYLV), transmitted by aphid vectors",
+        "prevention": "Use virus-free planting material, control aphid vectors, rogue infected plants early",
+        "treatment": "No chemical cure; remove infected plants, manage vector populations with insecticides",
+        "syngenta_products": []
+    },
+    "White Grub": {
+        "symptoms": "Wilting despite adequate moisture, root damage, plants easily pulled out, yellowing patches in field",
+        "causes": "White grub larvae (Holotrichia species) feeding on roots underground",
+        "prevention": "Deep plowing to expose grubs, use light traps for adult beetles, apply neem cake",
+        "treatment": "Apply soil insecticides at planting, treat setts before planting",
+        "syngenta_products": ["Acephate + Imidacloprid", "Fipronil + Imidacloprid", "Thiamethoxam + Fipronil"]
+    },
+    "Root Borer": {
+        "symptoms": "Wilting of young plants, bore holes at root zone, dead heart in young crop, yellowing",
+        "causes": "Root borer larvae (Emmalocera depressella) feeding on roots and underground stems",
+        "prevention": "Deep plowing, field sanitation, avoid waterlogging, treat setts before planting",
+        "treatment": "Apply soil insecticides at planting time, destroy crop residues",
+        "syngenta_products": ["Fipronil"]
+    },
+    "Pink Borer": {
+        "symptoms": "Dead heart in young plants, bore holes with frass, internal tunneling in stem base",
+        "causes": "Pink borer larvae (Sesamia inferens) attacking young shoots and stems",
+        "prevention": "Early planting, removal of dried leaves, field sanitation, light traps",
+        "treatment": "Apply insecticides in leaf whorl, remove and destroy affected shoots",
+        "syngenta_products": []
+    },
+    "Whitefly": {
+        "symptoms": "Tiny white insects on leaf undersurface, honeydew excretion, sooty mold, leaf yellowing",
+        "causes": "Whitefly infestation (Aleurolobus barodensis), sap-sucking pest",
+        "prevention": "Avoid excessive nitrogen, conserve natural enemies, use yellow sticky traps",
+        "treatment": "Apply recommended insecticides targeting nymphs, spray on undersurface of leaves",
+        "syngenta_products": []
     }
 }
 
@@ -338,33 +394,45 @@ async def detect_disease_ai(image_bytes: bytes) -> Dict[str, Any]:
 
 VISUAL GUIDE (match the image to ONE of these):
 
-1. "Early Shoot Borer" - Cross-section of stem showing internal tunneling/boring damage, white larvae/caterpillar visible inside reddish damaged stem tissue
-2. "Grassy Shoot Disease" - Multiple thin pale grass-like shoots growing from one stool, bushy appearance, pale yellow narrow leaves
-3. "Mites" - Silvery/white streaks or tiny white dot-like structures along leaf veins, fine webbing, leaves look bleached or whitish
-4. "Mosaic" - Irregular yellow-green mottling/patchwork pattern on leaves, alternating light and dark green areas creating mosaic pattern
-5. "Pokkah Boeng" - Young top leaves twisted, crinkled, malformed; knife-cut lesions on unfurling leaves; distorted shoot tip
-6. "Red Rot" - Internal reddening when stem is cut open, red discolored vascular tissue, withered upper leaves
-7. "Whiplash Smut" - Long black whip-like structure (sorus) emerging from the shoot tip, covered in dark powdery spores
-8. "Woolly Aphids" - White cottony/woolly masses on undersides of leaves or stems, honeydew and sooty mold
-9. "Brown Rust" - Many small raised orange-brown pustules scattered across leaf surface, rust-colored powder when touched, elongated pustules parallel to veins
-10. "Brown Spot" - Distinct brown oval spots with yellow halos on leaves, spots may merge into larger patches
-11. "Eye Spot" - Oval/elongated spots with reddish-brown center and lighter border (eye-shaped), spots with concentric zones
-12. "Internode Borer" - Bore holes in stem internodes with frass, internal tunneling in stem, red discoloration around entry holes
-13. "Leaf Footed Bug" - Visible bugs on leaves/stems with leaf-shaped hind legs, yellowing/wilting where they feed
-14. "Pyrilla" - White waxy-coated insects on leaf surface, planthopper insects with distinctive shape, waxy filaments
-15. "Scale Insect" - Small oval scale-covered insects attached to stems, crusty brown/white scales on stem surface
-16. "Black Aphid" - Clusters of dark/black small insects on leaves or stems, curled leaves
-17. "Wilt" - Sudden yellowing and drooping of entire plant, vascular browning
-18. "Healthy" - ONLY if leaves are perfectly uniform green with absolutely zero spots, marks, discoloration, or pests
+DISEASES:
+1. "Red Rot" - Internal reddening when stem is cut open, red discolored vascular tissue, white patches in red tissue, withered upper leaves, sour smell
+2. "Brown Rust" - Many small raised orange-brown pustules scattered across leaf surface, rust-colored powder, elongated pustules parallel to veins
+3. "Orange Rust" - Orange-colored pustules on leaf undersurface, elongated lesions, premature leaf death
+4. "Pokkah Boeng" - Young top leaves twisted, crinkled, malformed; knife-cut lesions on unfurling leaves; distorted shoot tip
+5. "Yellow Leaf Disease" - Yellowing of midrib, gradual drying from leaf tip downward, stunted growth
+6. "Grassy Shoot Disease" - Multiple thin pale grass-like shoots from one stool, bushy appearance, pale yellow narrow leaves
+7. "Mosaic" - Irregular yellow-green mottling/patchwork on leaves, alternating light and dark green mosaic pattern
+8. "Whiplash Smut" - Long black whip-like structure emerging from shoot tip, dark powdery spores
+9. "Brown Spot" - Distinct brown oval spots with yellow halos on leaves, spots may merge
+10. "Eye Spot" - Oval/elongated spots with reddish-brown center and lighter border (eye-shaped)
+11. "Wilt" - Sudden yellowing and drooping of entire plant, vascular browning
+
+PESTS:
+12. "Early Shoot Borer" - Dead heart in young shoots, bore holes in stems, larvae inside reddish damaged tissue
+13. "Top Shoot Borer" - Dead heart in grown-up canes, bunchy top appearance, boring from top
+14. "Internode Borer" - Bore holes in stem internodes with frass, internal tunneling
+15. "Root Borer" - Wilting of young plants, bore holes at root zone
+16. "Pink Borer" - Dead heart in young plants, bore holes with frass at stem base
+17. "Pyrilla" - White waxy-coated planthoppers on leaf surface, waxy filaments
+18. "White Grub" - Wilting despite moisture, root damage, plants easily pulled out
+19. "Woolly Aphids" - White cottony/woolly masses on leaves or stems, honeydew and sooty mold
+20. "Black Aphid" - Clusters of dark/black small insects on leaves, curled leaves
+21. "Aphids" - Small insects clustered on leaves/stems, honeydew, sooty mold
+22. "Whitefly" - Tiny white insects on leaf undersurface, honeydew, sooty mold
+23. "Mites" - Silvery/white streaks along leaf veins, fine webbing, bleached leaves
+24. "Scale Insect" - Small oval scale-covered insects on stems, crusty brown/white scales
+25. "Leaf Footed Bug" - Visible bugs with leaf-shaped hind legs, yellowing where they feed
+26. "Healthy" - ONLY if leaves are perfectly uniform green with zero spots, marks, discoloration, or pests
 
 RULES:
-- If you see ANY brown/orange pustules on leaves = "Brown Rust"
-- If you see oval spots with borders/halos = "Eye Spot"  
+- If you see ANY brown/orange pustules = "Brown Rust" or "Orange Rust" (orange = Orange Rust)
+- If you see oval spots with borders/halos = "Eye Spot"
 - If you see twisted/distorted top shoots = "Pokkah Boeng"
 - If you see black whip from top = "Whiplash Smut"
 - If you see mosaic yellow-green pattern = "Mosaic"
-- If you see white streaks/dots on stems = "Mites"
-- If you see larvae inside stem = "Early Shoot Borer"
+- If you see yellowing midrib = "Yellow Leaf Disease"
+- If you see dead heart in young shoots = "Early Shoot Borer"
+- If you see dead heart in mature cane = "Top Shoot Borer"
 - NEVER say "Healthy" if there is ANY visible damage, spot, discoloration, or pest
 - Be conservative: when in doubt, diagnose the disease
 
@@ -398,8 +466,10 @@ severity must be "high", "medium", or "low" based on visible damage extent.""",
             resp_lower = response.lower()
             disease_keywords = [
                 ("early shoot borer", "Early Shoot Borer"),
+                ("top shoot borer", "Top Shoot Borer"),
                 ("pokkah boeng", "Pokkah Boeng"),
                 ("brown rust", "Brown Rust"),
+                ("orange rust", "Orange Rust"),
                 ("brown spot", "Brown Spot"),
                 ("eye spot", "Eye Spot"),
                 ("whiplash smut", "Whiplash Smut"),
@@ -409,10 +479,16 @@ severity must be "high", "medium", or "low" based on visible damage extent.""",
                 ("mosaic", "Mosaic"),
                 ("mites", "Mites"),
                 ("grassy shoot", "Grassy Shoot Disease"),
+                ("yellow leaf", "Yellow Leaf Disease"),
                 ("internode borer", "Internode Borer"),
+                ("root borer", "Root Borer"),
+                ("pink borer", "Pink Borer"),
                 ("leaf footed", "Leaf Footed Bug"),
                 ("pyrilla", "Pyrilla"),
                 ("scale insect", "Scale Insect"),
+                ("white grub", "White Grub"),
+                ("whitefly", "Whitefly"),
+                ("aphid", "Aphids"),
                 ("wilt", "Wilt"),
             ]
             detected = None

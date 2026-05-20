@@ -9,11 +9,12 @@ import { format } from 'date-fns';
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const DISEASE_LIST = [
-  "Early Shoot Borer", "Grassy Shoot Disease", "Healthy", "Mites",
-  "Mosaic", "Pokkah Boeng", "Red Rot", "Whiplash Smut",
-  "Woolly Aphids", "Black Aphid", "Brown Rust", "Brown Spot",
-  "Eye Spot", "Internode Borer", "Leaf Footed Bug", "Pyrilla",
-  "Scale Insect", "Wilt"
+  "Early Shoot Borer", "Top Shoot Borer", "Grassy Shoot Disease", "Healthy",
+  "Mites", "Mosaic", "Pokkah Boeng", "Red Rot", "Whiplash Smut",
+  "Woolly Aphids", "Black Aphid", "Aphids", "Brown Rust", "Orange Rust",
+  "Brown Spot", "Eye Spot", "Internode Borer", "Root Borer", "Pink Borer",
+  "Leaf Footed Bug", "Pyrilla", "Scale Insect", "White Grub", "Whitefly",
+  "Wilt", "Yellow Leaf Disease"
 ];
 
 export const AdminPage = () => {
