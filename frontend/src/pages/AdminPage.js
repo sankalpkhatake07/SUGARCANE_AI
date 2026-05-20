@@ -28,6 +28,7 @@ export const AdminPage = () => {
   const [reviewingId, setReviewingId] = useState(null);
   const [reviewForm, setReviewForm] = useState({ disease: '', severity: '', suggestion: '' });
   const [submitting, setSubmitting] = useState(null);
+  const [expandedReviewId, setExpandedReviewId] = useState(null);
   const { t } = useTranslation();
 
   useEffect(() => { fetchData(); }, []);
@@ -389,7 +390,10 @@ export const AdminPage = () => {
                   ) : (
                     detections.filter(d => d.status === 'approved' || d.status === 'rejected').map((item) => (
                       <div key={item.id} data-testid={`reviewed-item-${item.id}`} className="bg-white rounded-xl shadow-md overflow-hidden">
-                        <div className="p-6">
+                        <div
+                          className="p-6 cursor-pointer hover:bg-[#F9F8F6] transition-colors"
+                          onClick={() => setExpandedReviewId(expandedReviewId === item.id ? null : item.id)}
+                        >
                           <div className="flex gap-6">
                             <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0 bg-[#E8ECE5]">
                               <img src={`${API_URL}/api/files/${item.image_path}`} alt="scan" className="w-full h-full object-cover" />
@@ -426,11 +430,57 @@ export const AdminPage = () => {
                               )}
 
                               {item.reviewed_at && (
-                                <p className="text-xs text-[#5C6B61] mt-2">Reviewed on {format(new Date(item.reviewed_at), 'PPpp')}</p>
+                                <p className="text-xs text-[#5C6B61] mt-2">
+                                  Reviewed on {format(new Date(item.reviewed_at), 'PPpp')}
+                                  <span className="ml-2 text-[#8B9D77]">{expandedReviewId === item.id ? '▲ Hide details' : '▼ View details'}</span>
+                                </p>
                               )}
                             </div>
                           </div>
                         </div>
+
+                        {/* Expanded Disease Details */}
+                        {expandedReviewId === item.id && item.status === 'approved' && (
+                          <div className="border-t border-[#DDE3DA] p-6 bg-[#F9F8F6] space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <h4 className="font-semibold text-[#1A201C] mb-1 text-sm uppercase tracking-wide">Symptoms</h4>
+                                <p className="text-sm text-[#5C6B61]">{item.symptoms}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-[#1A201C] mb-1 text-sm uppercase tracking-wide">Causes</h4>
+                                <p className="text-sm text-[#5C6B61]">{item.causes}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-[#1A201C] mb-1 text-sm uppercase tracking-wide">Treatment</h4>
+                                <p className="text-sm text-[#5C6B61]">{item.treatment}</p>
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-[#1A201C] mb-1 text-sm uppercase tracking-wide">Prevention</h4>
+                                <p className="text-sm text-[#5C6B61]">{item.prevention}</p>
+                              </div>
+                            </div>
+                            {item.syngenta_products && item.syngenta_products.length > 0 && (
+                              <div className="bg-[#EFF8EF] border border-[#8B9D77] rounded-xl p-4">
+                                <h4 className="font-semibold text-[#2D5A27] mb-2 text-sm uppercase tracking-wide">Recommended Products / Fertilizers</h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {item.syngenta_products.map((p, i) => (
+                                    <span key={i} className="bg-white px-3 py-1 rounded-full text-sm font-medium text-[#2D5A27] border border-[#2D5A27]">{p}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {expandedReviewId === item.id && item.status === 'rejected' && (
+                          <div className="border-t border-[#DDE3DA] p-6 bg-[#FDF0EF]">
+                            <p className="text-sm text-[#D9534F] font-medium">This scan was rejected.</p>
+                            {item.admin_suggestion && (
+                              <p className="text-sm text-[#5C6B61] mt-2">Reason: {item.admin_suggestion}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))
                   )}
