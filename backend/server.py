@@ -18,6 +18,7 @@ from PIL import Image
 import io
 import zipfile
 import torch
+from disease_translations import DISEASE_INFO_MR, DISEASE_INFO_HI
 from ultralytics import YOLO
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 
@@ -242,6 +243,44 @@ DISEASE_INFO = {
         "syngenta_products": []
     }
 }
+
+
+def get_translated_disease_info(disease_name: str, lang: str = "en") -> Dict[str, Any]:
+    """Get disease info in the requested language"""
+    # Get English info as base
+    info = None
+    for key, val in DISEASE_INFO.items():
+        if key.lower() == disease_name.lower():
+            info = dict(val)
+            disease_name = key
+            break
+    if not info:
+        info = dict(DISEASE_INFO.get("Healthy", {}))
+        disease_name = "Healthy"
+    
+    if lang == "mr" and disease_name in DISEASE_INFO_MR:
+        mr = DISEASE_INFO_MR[disease_name]
+        info["disease_name_local"] = mr.get("disease_name", disease_name)
+        info["symptoms"] = mr["symptoms"]
+        info["causes"] = mr["causes"]
+        info["prevention"] = mr["prevention"]
+        info["treatment"] = mr["treatment"]
+        if mr.get("syngenta_products"):
+            info["syngenta_products"] = mr["syngenta_products"]
+    elif lang == "hi" and disease_name in DISEASE_INFO_HI:
+        hi = DISEASE_INFO_HI[disease_name]
+        info["disease_name_local"] = hi.get("disease_name", disease_name)
+        info["symptoms"] = hi["symptoms"]
+        info["causes"] = hi["causes"]
+        info["prevention"] = hi["prevention"]
+        info["treatment"] = hi["treatment"]
+        if hi.get("syngenta_products"):
+            info["syngenta_products"] = hi["syngenta_products"]
+    else:
+        info["disease_name_local"] = disease_name
+    
+    return info
+
 
 # Helper Functions
 def init_storage():
@@ -814,11 +853,22 @@ async def detect_disease(file: UploadFile = File(...), current_user: dict = Depe
         raise HTTPException(status_code=500, detail=f"Detection failed: {str(e)}")
 
 @api_router.get("/history")
-async def get_history(current_user: dict = Depends(get_current_user)):
+async def get_history(lang: str = "en", current_user: dict = Depends(get_current_user)):
     detections = await db.detections.find(
         {"user_id": current_user["id"]},
         {"_id": 0}
     ).sort("created_at", -1).to_list(100)
+    
+    # Translate disease info based on language
+    for det in detections:
+        if det.get("status") == "approved" and det.get("disease"):
+            translated = get_translated_disease_info(det["disease"], lang)
+            det["disease_name_local"] = translated.get("disease_name_local", det["disease"])
+            det["symptoms"] = translated["symptoms"]
+            det["causes"] = translated["causes"]
+            det["prevention"] = translated["prevention"]
+            det["treatment"] = translated["treatment"]
+            det["syngenta_products"] = translated["syngenta_products"]
     
     return detections
 
@@ -831,8 +881,12 @@ async def get_file(path: str):
         raise HTTPException(status_code=404, detail="File not found")
 
 @api_router.get("/diseases")
-async def get_diseases():
-    return DISEASE_INFO
+async def get_diseases(lang: str = "en"):
+    result = {}
+    for name, info in DISEASE_INFO.items():
+        translated = get_translated_disease_info(name, lang)
+        result[name] = translated
+    return result
 
 # Admin Routes
 @api_router.get("/admin/users")

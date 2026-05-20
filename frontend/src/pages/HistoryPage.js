@@ -13,13 +13,13 @@ export const HistoryPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedId, setExpandedId] = useState(null);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
-  useEffect(() => { fetchHistory(); }, []);
+  useEffect(() => { fetchHistory(); }, [i18n.language]);
 
   const fetchHistory = async () => {
     try {
-      const { data } = await axios.get(`${API_URL}/api/history`, { withCredentials: true });
+      const { data } = await axios.get(`${API_URL}/api/history?lang=${i18n.language}`, { withCredentials: true });
       setHistory(data);
     } catch (error) {
       console.error('Failed to fetch history:', error);
@@ -127,7 +127,12 @@ export const HistoryPage = () => {
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               {status === 'approved' ? (
-                                <h3 className="text-xl font-bold text-[#1A201C]">{item.disease}</h3>
+                                <h3 className="text-xl font-bold text-[#1A201C]">
+                                  {item.disease_name_local || item.disease}
+                                  {item.disease_name_local && item.disease_name_local !== item.disease && (
+                                    <span className="text-sm font-normal text-[#5C6B61] ml-2">({item.disease})</span>
+                                  )}
+                                </h3>
                               ) : status === 'rejected' ? (
                                 <h3 className="text-xl font-bold text-[#D9534F]">Scan Rejected</h3>
                               ) : (

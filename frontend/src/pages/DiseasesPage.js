@@ -11,15 +11,15 @@ export const DiseasesPage = () => {
   const [diseases, setDiseases] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedDisease, setSelectedDisease] = useState(null);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   useEffect(() => {
     fetchDiseases();
-  }, []);
+  }, [i18n.language]);
 
   const fetchDiseases = async () => {
     try {
-      const { data } = await axios.get(`${API_URL}/api/diseases`);
+      const { data } = await axios.get(`${API_URL}/api/diseases?lang=${i18n.language}`);
       setDiseases(data);
       if (Object.keys(data).length > 0) {
         setSelectedDisease(Object.keys(data)[0]);
@@ -75,7 +75,12 @@ export const DiseasesPage = () => {
                       <div className={selectedDisease === diseaseName ? 'text-white' : ''}>
                         {diseaseIcons[diseaseName]}
                       </div>
-                      <h3 className="font-bold text-lg">{diseaseName}</h3>
+                      <div>
+                        <h3 className="font-bold text-lg">{diseases[diseaseName]?.disease_name_local || diseaseName}</h3>
+                        {diseases[diseaseName]?.disease_name_local && diseases[diseaseName]?.disease_name_local !== diseaseName && (
+                          <p className={`text-xs ${selectedDisease === diseaseName ? 'text-white/70' : 'text-[#5C6B61]'}`}>{diseaseName}</p>
+                        )}
+                      </div>
                     </div>
                   </motion.button>
                 ))}
@@ -93,8 +98,11 @@ export const DiseasesPage = () => {
                     <div className="flex items-center space-x-4">
                       {diseaseIcons[selectedDisease]}
                       <h2 className="text-3xl font-bold text-[#1A201C]" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                        {selectedDisease}
+                        {diseases[selectedDisease]?.disease_name_local || selectedDisease}
                       </h2>
+                      {diseases[selectedDisease]?.disease_name_local && diseases[selectedDisease]?.disease_name_local !== selectedDisease && (
+                        <p className="text-base text-[#5C6B61]">({selectedDisease})</p>
+                      )}
                     </div>
 
                     <div className="space-y-4">
