@@ -34,8 +34,8 @@ export const LoginPage = () => {
       {/* Left - Hero Image */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <img
-          src="https://static.prod-images.emergentagent.com/jobs/26816054-55c0-4c2e-8815-3fcc93057a4f/images/fcb89757804fa40fb8a3512a40bfeaf09db80d741689cf3789acefec0dd5d0ab.png"
-          alt="Sugarcane"
+          src="https://images.pexels.com/photos/11466855/pexels-photo-11466855.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=1200&w=800"
+          alt="Sugarcane Field"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-[#1A3626]/80 to-[#1A3626]/40" />

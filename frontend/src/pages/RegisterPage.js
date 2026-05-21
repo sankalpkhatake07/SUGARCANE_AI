@@ -33,7 +33,7 @@ export const RegisterPage = () => {
     <div className="min-h-screen bg-[#F5F5F0] flex">
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <img
-          src="https://images.unsplash.com/photo-1606707761700-86b58f251a01?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwxfHxzdWdhcmNhbmUlMjBmaWVsZCUyMG1vcm5pbmd8ZW58MHx8fHwxNzc5MzQ0NDkyfDA&ixlib=rb-4.1.0&q=85"
+          src="https://images.unsplash.com/photo-1678759916423-94a69a9dbcd0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwzfHxzdWdhcmNhbmUlMjBmaWVsZCUyMHBsYW50YXRpb24lMjBncmVlbnxlbnwwfHx8fDE3NzkzNDU0MzR8MA&ixlib=rb-4.1.0&q=85"
           alt="Sugarcane Field"
           className="absolute inset-0 w-full h-full object-cover"
         />
