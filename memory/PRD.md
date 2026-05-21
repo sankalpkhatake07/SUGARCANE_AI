@@ -1,71 +1,49 @@
-# Sugarcane Disease Analysis - Product Requirements Document
+# SUGARCANE AI - Product Requirements Document
 
-## Original Problem Statement
-Build a sugarcane disease analysis website using a custom YOLO model (`best.pt`) alongside an AI vision model (GPT-5.1 Vision). Compare predictions internally and display only the final result to the user without confidence scores. Admin approval workflow required before farmers see results.
+## Problem Statement
+Build a sugarcane disease analysis website using a custom YOLO model (`best.pt`) alongside an AI vision model (GPT-5.1 Vision via Emergent LLM Key).
 
 ## Core Requirements
-- Green/earthy color theme
-- Dashboard to upload/capture images and predict diseases
-- Admin approval workflow: farmer uploads -> AI detects -> admin reviews/approves/rejects -> farmer sees results
-- Results show: disease name, severity, treatment tips, recommended Syngenta products, admin suggestions
-- History page with status badges (Pending/Approved/Rejected)
-- Disease Info page with symptoms/causes/preventions
-- Multi-language support: English, Hindi, Marathi
-- Two login types: Admin (admin/ADT@123) and User (username/password)
-- No confidence scores shown to end users
-- Admin can download all uploaded images as ZIP
+- **Two Roles**: Admin (`admin`/`ADT@123`) and User/Farmer (simple pseudo-login)
+- **Multi-language**: English, Hindi, Marathi across entire UI and prediction results
+- **Detection Pipeline**: Dual-model (YOLO primary at 40% threshold + GPT-5.1 Vision verifier/fallback)
+- **Admin Approval Workflow**: Farmer uploads → Pending → Admin reviews/approves/rejects → Farmer sees result
+- **Admin Panel**: Pending Reviews, Reviewed history (expandable), Disease Library (admin-only), ZIP download
+- **Results**: Disease name, severity, treatment, chemical products/fertilizers for 26 diseases
+- **No "Syngenta" branding**, no confidence scores shown to users
+- **Innovative earthy UI design** with "SUGARCANE AI" branding
 
-## Tech Stack
-- Frontend: React + TailwindCSS + Shadcn UI + Phosphor Icons + Framer Motion
-- Backend: FastAPI + Motor (async MongoDB)
-- Database: MongoDB
-- AI Models: YOLO (best.pt, 15 classes) + GPT-5.1 Vision (via Emergent LLM Key)
-- Storage: Emergent Object Storage
+## Architecture
+- **Frontend**: React + TailwindCSS + Shadcn UI + lucide-react + framer-motion + i18next
+- **Backend**: FastAPI + MongoDB + Ultralytics YOLOv8 + Emergent Integrations (GPT-5.1 Vision)
+- **Model**: `best.pt` (6.5MB YOLOv8 weights)
 
 ## What's Been Implemented
-
-### Completed
-- Full-stack scaffolding (FastAPI + React + MongoDB)
-- Admin and User authentication (JWT, cookies)
-- Dashboard with drag-drop image upload
-- Dual-model detection pipeline: YOLO (primary) + GPT-5.1 Vision (verifier)
-- **Admin Approval Workflow**:
-  - Farmer uploads -> saved as "pending"
-  - Dashboard shows "Submitted for Review" message
-  - Admin sees pending scans in "Pending Reviews" tab
-  - Admin can approve (with disease correction + severity + suggestion) or reject (with note)
-  - Farmer sees results only after admin approval
-  - History shows Pending/Approved/Rejected status badges
-  - Expandable history items for approved scans (symptoms, treatment, prevention, admin suggestion)
-- Admin-only ZIP download of all uploaded images
-- Language toggle (EN, Hindi, Marathi)
-- Disease Info library (18 diseases)
-- No confidence scores displayed
-
-## Detection Flow
-1. Farmer uploads image -> AI runs dual detection (YOLO + GPT-5.1)
-2. Result saved as `status: "pending"` with `ai_disease` and `ai_severity`
-3. Farmer sees "Submitted for Review" (no disease details)
-4. Admin reviews in "Pending Reviews" tab - sees AI prediction, image, farmer name
-5. Admin approves/corrects/adds suggestion OR rejects with note
-6. Farmer sees full results only after approval
+- Full dual-model detection pipeline (YOLO + GPT-5.1 Vision)
+- Complete Admin Approval Workflow with approve/reject/correct/suggest
+- 26 diseases with specific chemical treatments
+- Comprehensive EN/HI/MR i18n (UI labels + backend disease dictionaries)
+- Admin: Pending/Reviewed tabs, expandable reviewed items, stats, user list, ZIP download
+- User: Dashboard with drag-drop upload, History with search/filter, expandable approved results
+- Innovative earthy green UI theme (#1A3626 primary, #F5F5F0 background)
+- "SUGARCANE AI" branding with sugarcane imagery on login/register
+- Disease Library restricted to admin only
+- Role-based navigation (admin sees Diseases + Admin Panel, users see Dashboard + History)
+- Mobile-responsive layout with hamburger menu
 
 ## Key Endpoints
-- POST /api/auth/register, POST /api/auth/login, POST /api/auth/logout, GET /api/auth/me
-- PUT /api/profile
-- POST /api/detect (saves as pending)
-- GET /api/history (farmer's scans with status)
-- GET /api/files/{path}
-- GET /api/diseases
-- GET /api/admin/users, GET /api/admin/detections, GET /api/admin/stats
-- GET /api/admin/pending (pending scans for review)
-- POST /api/admin/review/{id} (approve/reject with corrections)
-- GET /api/admin/download-images (ZIP download)
+- `POST /api/detect` - Run YOLO + GPT-5.1, creates detection with status "pending"
+- `GET /api/admin/pending` - Fetch unreviewed scans
+- `POST /api/admin/review/{id}` - Admin approve/reject with corrections
+- `GET /api/admin/download-images` - ZIP of all images
+- `GET /api/history?lang=xx` - User's scan history with translations
+- `GET /api/diseases?lang=xx` - Disease library data
 
-## Database Schema - detections collection
-id, user_id, username, image_path, ai_disease, ai_severity, disease, severity, treatment, syngenta_products, symptoms, causes, prevention, status (pending/approved/rejected), admin_suggestion, reviewed_by, reviewed_at, created_at
+## DB Schema
+- `users`: `{username, role, name, mobile, created_at}`
+- `detections`: `{id, image_id, image_url, user_id, yolo_prediction, ai_prediction, final_prediction, status, admin_suggestion, admin_corrected_disease, severity, created_at}`
 
-## Pending/Upcoming Tasks
-- P1: Highlight affected areas on images (YOLO bounding boxes on frontend)
-- P2: Camera capture feature
-- P2: Backend refactoring
+## Backlog
+- **P2**: Camera capture feature for mobile users
+- **P2**: Bounding box overlays on images using YOLO coordinates
+- **P2**: Backend refactoring (split `server.py` into modular routes)

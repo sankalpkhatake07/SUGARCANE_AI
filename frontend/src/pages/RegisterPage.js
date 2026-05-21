@@ -71,14 +71,14 @@ export const RegisterPage = () => {
             <div>
               <label className="text-xs uppercase tracking-[0.2em] text-[#839E88] font-semibold mb-2 block">{t('password')}</label>
               <div className="relative">
-                <input type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose a password" required
+                <input data-testid="register-password-input" type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose a password" required
                   className="w-full bg-[#FDFDFB] border border-[#839E88]/40 rounded-lg px-4 py-3 pr-12 focus:ring-2 focus:ring-[#1A3626] focus:border-transparent outline-none transition-all text-[#1A3626] placeholder:text-[#839E88]" />
                 <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#839E88] hover:text-[#1A3626]">
                   {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
-            <button type="submit" disabled={loading}
+            <button data-testid="register-submit-button" type="submit" disabled={loading}
               className="w-full bg-[#1A3626] text-[#FDFDFB] py-3.5 rounded-lg font-semibold text-base flex items-center justify-center space-x-2 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#1A3626]/20 disabled:opacity-50 active:translate-y-0">
               {loading ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#FDFDFB]"></div> : <><UserPlus className="w-5 h-5" /><span>{t('registerButton')}</span></>}
             </button>
