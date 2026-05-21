@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
-import { UserPlus, User, Lock } from '@phosphor-icons/react';
+import { Leaf, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const RegisterPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -17,23 +17,11 @@ export const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 4) {
-      setError('Password must be at least 4 characters');
-      return;
-    }
-
     setLoading(true);
-
+    setError('');
     try {
       await register(username, password);
-      navigate('/profile-setup');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.detail || 'Registration failed');
     } finally {
@@ -42,118 +30,66 @@ export const RegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-cover bg-center" style={{
-      backgroundImage: 'url(https://static.prod-images.emergentagent.com/jobs/26816054-55c0-4c2e-8815-3fcc93057a4f/images/0e70b52a55c7418044b640e18aec8a044be14a540f264246400fe573ee75bd1f.png)'
-    }}>
-      <div className="absolute inset-0 bg-black/40"></div>
-      
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 w-full max-w-md mx-4"
-      >
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-[#2D5A27] rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-2xl">SC</span>
+    <div className="min-h-screen bg-[#F5F5F0] flex">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1606707761700-86b58f251a01?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwxfHxzdWdhcmNhbmUlMjBmaWVsZCUyMG1vcm5pbmd8ZW58MHx8fHwxNzc5MzQ0NDkyfDA&ixlib=rb-4.1.0&q=85"
+          alt="Sugarcane Field"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1A3626]/80 to-[#1A3626]/40" />
+        <div className="relative z-10 flex flex-col justify-end p-12 text-white">
+          <h2 className="text-3xl font-bold tracking-tight mb-3">Join SUGARCANE AI</h2>
+          <p className="text-lg text-white/80 leading-relaxed max-w-md">
+            Start detecting sugarcane diseases with AI-powered analysis and get expert-verified treatment plans.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+          <div className="lg:hidden flex items-center space-x-2.5 mb-10">
+            <div className="w-10 h-10 bg-[#1A3626] rounded-lg flex items-center justify-center">
+              <Leaf className="w-6 h-6 text-[#F5F5F0]" />
             </div>
-            <h1 className="text-3xl font-bold text-[#1A201C]" style={{ fontFamily: 'Outfit, sans-serif' }}>
-              {t('register')}
-            </h1>
-            <p className="text-[#5C6B61] mt-2">Create your account</p>
+            <span className="text-xl font-bold text-[#1A3626] tracking-tight">SUGARCANE<span className="text-[#839E88]"> AI</span></span>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-[#1A3626] tracking-tight mb-2">{t('register')}</h1>
+          <p className="text-[#57695D] mb-8">Create your account to get started</p>
+
+          {error && (
+            <div className="bg-[#F5D0C9] border border-[#E29D90] text-[#8F2C1A] px-4 py-3 rounded-xl mb-6 text-sm font-medium">{error}</div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-[#1A201C] mb-2">
-                {t('username')}
-              </label>
+              <label className="text-xs uppercase tracking-[0.2em] text-[#839E88] font-semibold mb-2 block">{t('username')}</label>
+              <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Choose a username" required
+                className="w-full bg-[#FDFDFB] border border-[#839E88]/40 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#1A3626] focus:border-transparent outline-none transition-all text-[#1A3626] placeholder:text-[#839E88]" />
+            </div>
+            <div>
+              <label className="text-xs uppercase tracking-[0.2em] text-[#839E88] font-semibold mb-2 block">{t('password')}</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B9D77]" size={20} />
-                <input
-                  id="username"
-                  type="text"
-                  data-testid="register-username-input"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-[#DDE3DA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D5A27] focus:border-transparent"
-                  placeholder="Choose a username"
-                  required
-                />
+                <input type={showPw ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Choose a password" required
+                  className="w-full bg-[#FDFDFB] border border-[#839E88]/40 rounded-lg px-4 py-3 pr-12 focus:ring-2 focus:ring-[#1A3626] focus:border-transparent outline-none transition-all text-[#1A3626] placeholder:text-[#839E88]" />
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#839E88] hover:text-[#1A3626]">
+                  {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-[#1A201C] mb-2">
-                {t('password')}
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B9D77]" size={20} />
-                <input
-                  id="password"
-                  type="password"
-                  data-testid="register-password-input"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-[#DDE3DA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D5A27] focus:border-transparent"
-                  placeholder="Create a password"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#1A201C] mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B9D77]" size={20} />
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  data-testid="register-confirm-password-input"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-[#DDE3DA] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D5A27] focus:border-transparent"
-                  placeholder="Confirm your password"
-                  required
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div data-testid="register-error" className="bg-[#FDF0EF] border border-[#D9534F] text-[#D9534F] px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              data-testid="register-submit-button"
-              disabled={loading}
-              className="w-full bg-[#2D5A27] hover:bg-[#24481F] text-white py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
-            >
-              {loading ? (
-                <span>{t('loading')}</span>
-              ) : (
-                <>
-                  <UserPlus size={20} />
-                  <span>{t('registerButton')}</span>
-                </>
-              )}
+            <button type="submit" disabled={loading}
+              className="w-full bg-[#1A3626] text-[#FDFDFB] py-3.5 rounded-lg font-semibold text-base flex items-center justify-center space-x-2 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#1A3626]/20 disabled:opacity-50 active:translate-y-0">
+              {loading ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-[#FDFDFB]"></div> : <><UserPlus className="w-5 h-5" /><span>{t('registerButton')}</span></>}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-[#5C6B61] text-sm">
-              {t('alreadyHaveAccount')}{' '}
-              <Link to="/login" className="text-[#2D5A27] hover:underline font-medium">
-                {t('loginButton')}
-              </Link>
-            </p>
-          </div>
-        </div>
-      </motion.div>
+          <p className="text-center text-[#57695D] mt-8 text-sm">
+            {t('alreadyHaveAccount')}{' '}
+            <Link to="/login" className="text-[#1A3626] font-semibold hover:underline underline-offset-4">{t('login')}</Link>
+          </p>
+        </motion.div>
+      </div>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Layout } from '../components/Layout';
 import { useTranslation } from 'react-i18next';
-import { UploadSimple, Scan, CheckCircle, Warning, Info, Clock, PaperPlaneTilt } from '@phosphor-icons/react';
+import { Upload, ScanLine, Clock, SendHorizonal, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
@@ -12,6 +12,7 @@ export const DashboardPage = () => {
   const [preview, setPreview] = useState(null);
   const [detecting, setDetecting] = useState(false);
   const [result, setResult] = useState(null);
+  const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
   const { t, i18n } = useTranslation();
 
@@ -26,14 +27,12 @@ export const DashboardPage = () => {
     }
   };
 
-  const handleDragOver = (e) => e.preventDefault();
-
+  const handleDrag = (e) => { e.preventDefault(); e.stopPropagation(); setDragActive(e.type === 'dragenter' || e.type === 'dragover'); };
   const handleDrop = (e) => {
-    e.preventDefault();
+    e.preventDefault(); setDragActive(false);
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
-      setSelectedFile(file);
-      setResult(null);
+      setSelectedFile(file); setResult(null);
       const reader = new FileReader();
       reader.onloadend = () => setPreview(reader.result);
       reader.readAsDataURL(file);
@@ -46,131 +45,108 @@ export const DashboardPage = () => {
     const formData = new FormData();
     formData.append('file', selectedFile);
     try {
-      const { data } = await axios.post(`${API_URL}/api/detect`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        withCredentials: true
-      });
+      const { data } = await axios.post(`${API_URL}/api/detect`, formData, { headers: { 'Content-Type': 'multipart/form-data' }, withCredentials: true });
       setResult(data);
     } catch (error) {
-      console.error('Detection error:', error);
       alert('Detection failed. Please try again.');
     } finally {
       setDetecting(false);
     }
   };
 
-  const handleNewScan = () => {
-    setSelectedFile(null);
-    setPreview(null);
-    setResult(null);
-  };
+  const handleNewScan = () => { setSelectedFile(null); setPreview(null); setResult(null); };
 
   return (
     <Layout>
-      <div data-testid="dashboard-page" className="max-w-6xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-4xl sm:text-5xl font-bold text-[#1A201C] mb-2" style={{ fontFamily: 'Outfit, sans-serif' }}>
-            {t('dashboard')}
-          </h1>
-          <p className="text-base text-[#5C6B61] mb-8">
-            {t('dashboardSubtitle')}
-          </p>
+      <motion.div data-testid="dashboard-page" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-[#1A3626] tracking-tight mb-1">{t('dashboard')}</h1>
+        <p className="text-base text-[#57695D] mb-10 leading-relaxed">{t('dashboardSubtitle')}</p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Upload Section */}
-            <div className="space-y-6">
-              <div
-                data-testid="upload-zone"
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                onClick={() => !result && fileInputRef.current?.click()}
-                className={`border-2 border-dashed border-[#8B9D77] bg-[#E8ECE5]/50 rounded-2xl min-h-[300px] flex items-center justify-center transition-all ${!result ? 'cursor-pointer hover:bg-[#E8ECE5]' : ''}`}
-              >
-                {preview ? (
-                  <div className="relative w-full h-full p-4">
-                    <img src={preview} alt="Preview" className="w-full h-full object-contain rounded-xl" />
-                  </div>
-                ) : (
-                  <div className="text-center p-8">
-                    <UploadSimple size={64} className="mx-auto text-[#8B9D77] mb-4" />
-                    <p className="text-[#1A201C] font-medium mb-2">{t('uploadImage')}</p>
-                    <p className="text-sm text-[#5C6B61]">{t('dragDrop')}</p>
-                  </div>
-                )}
-              </div>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
-
-              {!result ? (
-                <button
-                  data-testid="detect-button"
-                  onClick={handleDetect}
-                  disabled={!selectedFile || detecting}
-                  className="w-full bg-[#2D5A27] hover:bg-[#24481F] text-white py-4 rounded-xl font-semibold text-lg flex items-center justify-center space-x-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-95"
-                >
-                  {detecting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-white"></div>
-                      <span>{t('analyzing')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Scan size={24} />
-                      <span>{t('detectDisease')}</span>
-                    </>
-                  )}
-                </button>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+          {/* Upload Area - Takes 3 cols */}
+          <div className="lg:col-span-3 space-y-6">
+            <div
+              data-testid="upload-dropzone"
+              onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+              onClick={() => !result && fileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-2xl min-h-[380px] flex items-center justify-center transition-all duration-300 overflow-hidden ${
+                dragActive ? 'border-[#1A3626] bg-[#1A3626]/5 scale-[1.01]' :
+                preview ? 'border-[#839E88]/30 bg-[#FDFDFB]' :
+                'border-[#839E88] bg-[#E8E8E3]/50 hover:bg-[#E8E8E3] hover:border-[#1A3626] cursor-pointer'
+              }`}
+            >
+              {preview ? (
+                <img src={preview} alt="Preview" className="w-full h-full object-contain p-4" />
               ) : (
-                <button
-                  data-testid="new-scan-button"
-                  onClick={handleNewScan}
-                  className="w-full bg-[#5C6B61] hover:bg-[#4A564F] text-white py-4 rounded-xl font-semibold text-lg flex items-center justify-center space-x-3 transition-all shadow-lg hover:shadow-xl active:scale-95"
-                >
-                  <Scan size={24} />
-                  <span>{t('newScan')}</span>
-                </button>
-              )}
-            </div>
-
-            {/* Results Section */}
-            <div>
-              <AnimatePresence>
-                {result && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    data-testid="detection-result"
-                    className="bg-white rounded-2xl shadow-lg p-6 space-y-5"
-                  >
-                    {/* Submitted for Review Banner */}
-                    <div className="bg-[#FEF8ED] border-2 border-[#F5A623] rounded-xl p-5 flex items-start space-x-4">
-                      <Clock size={32} className="text-[#F5A623] flex-shrink-0 mt-0.5" weight="fill" />
-                      <div>
-                        <h3 className="text-lg font-bold text-[#1A201C]">{t('submittedForReview')}</h3>
-                        <p className="text-sm text-[#5C6B61] mt-1">
-                          {t('submittedMsg')}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-3 text-[#5C6B61]">
-                      <PaperPlaneTilt size={20} weight="fill" className="text-[#2D5A27]" />
-                      <span className="text-sm">{t('aiAnalyzed')}</span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {!result && (
-                <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-                  <Scan size={64} className="mx-auto text-[#DDE3DA] mb-4" />
-                  <p className="text-[#5C6B61]">{t('uploadAndDetect')}</p>
+                <div className="text-center p-8">
+                  <div className="w-20 h-20 mx-auto mb-5 bg-[#1A3626]/5 rounded-2xl flex items-center justify-center">
+                    <Upload className="w-10 h-10 text-[#839E88]" strokeWidth={1.5} />
+                  </div>
+                  <p className="text-[#1A3626] font-semibold text-lg mb-1">{t('uploadImage')}</p>
+                  <p className="text-sm text-[#839E88]">{t('dragDrop')}</p>
+                  <p className="text-xs text-[#839E88]/70 mt-3">JPG, PNG up to 10MB</p>
                 </div>
               )}
             </div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+
+            {!result ? (
+              <button
+                data-testid="detect-disease-button"
+                onClick={handleDetect}
+                disabled={!selectedFile || detecting}
+                className="w-full bg-[#1A3626] text-[#FDFDFB] py-4 rounded-xl font-semibold text-lg flex items-center justify-center space-x-3 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#1A3626]/20 disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none active:translate-y-0"
+              >
+                {detecting ? (
+                  <><div className="animate-spin rounded-full h-6 w-6 border-t-2 border-[#FDFDFB]"></div><span>{t('analyzing')}</span></>
+                ) : (
+                  <><ScanLine className="w-6 h-6" /><span>{t('detectDisease')}</span></>
+                )}
+              </button>
+            ) : (
+              <button data-testid="new-scan-button" onClick={handleNewScan}
+                className="w-full bg-[#E8E8E3] text-[#1A3626] py-4 rounded-xl font-semibold text-lg flex items-center justify-center space-x-3 transition-all hover:bg-[#839E88] hover:text-[#FDFDFB]">
+                <RotateCcw className="w-5 h-5" /><span>{t('newScan')}</span>
+              </button>
+            )}
           </div>
-        </motion.div>
-      </div>
+
+          {/* Result Area - Takes 2 cols */}
+          <div className="lg:col-span-2">
+            <AnimatePresence mode="wait">
+              {result ? (
+                <motion.div key="result" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                  data-testid="detection-result"
+                  className="bg-[#FDFDFB] border border-[#1A3626]/10 rounded-2xl shadow-[4px_4px_10px_rgba(26,54,38,0.05),-4px_-4px_10px_rgba(255,255,255,1)] p-7 space-y-5"
+                >
+                  <div className="bg-[#FCE5CD] border border-[#F3C185] rounded-xl p-5">
+                    <div className="flex items-start space-x-3">
+                      <Clock className="w-7 h-7 text-[#B36B00] flex-shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="text-base font-bold text-[#1A3626]">{t('submittedForReview')}</h3>
+                        <p className="text-sm text-[#57695D] mt-1.5 leading-relaxed">{t('submittedMsg')}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2.5 text-[#839E88]">
+                    <SendHorizonal className="w-4 h-4" />
+                    <span className="text-sm">{t('aiAnalyzed')}</span>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="bg-[#FDFDFB] border border-[#1A3626]/10 rounded-2xl shadow-[4px_4px_10px_rgba(26,54,38,0.05),-4px_-4px_10px_rgba(255,255,255,1)] p-10 text-center h-full flex flex-col items-center justify-center"
+                >
+                  <div className="w-24 h-24 bg-[#E8E8E3] rounded-2xl flex items-center justify-center mb-5">
+                    <ScanLine className="w-12 h-12 text-[#839E88]" strokeWidth={1} />
+                  </div>
+                  <p className="text-[#839E88] text-sm">{t('uploadAndDetect')}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </motion.div>
     </Layout>
   );
 };

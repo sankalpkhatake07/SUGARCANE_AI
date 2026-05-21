@@ -1,154 +1,165 @@
-import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useLanguage } from '../contexts/LanguageContext';
 import { useTranslation } from 'react-i18next';
-import { House, ClockCounterClockwise, BookOpen, UserGear, SignOut, Translate } from '@phosphor-icons/react';
+import { LayoutDashboard, History, BookOpen, ShieldCheck, LogOut, Globe, ChevronDown, Leaf, Menu, X } from 'lucide-react';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
-  const { currentLanguage, changeLanguage } = useLanguage();
-  const { t } = useTranslation();
-  const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
-  const [showLangMenu, setShowLangMenu] = React.useState(false);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
+  const navigate = useNavigate();
+  const [langOpen, setLangOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const langRef = useRef(null);
 
   const isActive = (path) => location.pathname === path;
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (langRef.current && !langRef.current.contains(e.target)) setLangOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => { logout(); navigate('/login'); };
+
+  const languages = [
+    { code: 'en', label: 'English', short: 'EN' },
+    { code: 'hi', label: 'हिन्दी', short: 'HI' },
+    { code: 'mr', label: 'मराठी', short: 'MR' }
+  ];
+
+  const currentLang = languages.find(l => l.code === i18n.language) || languages[0];
+
+  const navItems = [
+    { path: '/dashboard', label: t('dashboard'), icon: LayoutDashboard, testId: 'nav-dashboard' },
+    { path: '/history', label: t('history'), icon: History, testId: 'nav-history' },
+    ...(user?.role === 'admin' ? [
+      { path: '/diseases', label: t('diseases'), icon: BookOpen, testId: 'nav-diseases' },
+      { path: '/admin', label: t('admin'), icon: ShieldCheck, testId: 'nav-admin' }
+    ] : [])
+  ];
+
   return (
-    <div className="min-h-screen bg-[#F9F8F6]">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white border-b border-[#DDE3DA] shadow-sm">
+    <div className="min-h-screen bg-[#F5F5F0]">
+      {/* Glassmorphic Header */}
+      <header className="bg-[#F5F5F0]/80 backdrop-blur-xl border-b border-[#1A3626]/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link to="/dashboard" className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-[#2D5A27] rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-xl">SC</span>
+            <Link to="/dashboard" className="flex items-center space-x-2.5 group">
+              <div className="w-9 h-9 bg-[#1A3626] rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+                <Leaf className="w-5 h-5 text-[#F5F5F0]" />
               </div>
-              <span className="text-xl font-bold text-[#1A201C]" style={{ fontFamily: 'Outfit, sans-serif' }}>
-                SugarCane AI
+              <span className="text-lg font-bold text-[#1A3626] tracking-tight hidden sm:block">
+                SUGARCANE<span className="text-[#839E88] font-medium"> AI</span>
               </span>
             </Link>
 
-            {/* Navigation */}
+            {/* Desktop Nav */}
             <nav className="hidden md:flex items-center space-x-1">
-              <Link
-                to="/dashboard"
-                data-testid="nav-dashboard"
-                className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
-                  isActive('/dashboard')
-                    ? 'bg-[#E8ECE5] text-[#2D5A27]'
-                    : 'text-[#5C6B61] hover:bg-[#F9F8F6]'
-                }`}
-              >
-                <House size={20} weight={isActive('/dashboard') ? 'fill' : 'regular'} />
-                <span>{t('dashboard')}</span>
-              </Link>
-              <Link
-                to="/history"
-                data-testid="nav-history"
-                className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
-                  isActive('/history')
-                    ? 'bg-[#E8ECE5] text-[#2D5A27]'
-                    : 'text-[#5C6B61] hover:bg-[#F9F8F6]'
-                }`}
-              >
-                <ClockCounterClockwise size={20} weight={isActive('/history') ? 'fill' : 'regular'} />
-                <span>{t('history')}</span>
-              </Link>
-              {user?.role === 'admin' && (
+              {navItems.map(item => (
                 <Link
-                  to="/diseases"
-                  data-testid="nav-diseases"
-                  className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
-                    isActive('/diseases')
-                      ? 'bg-[#E8ECE5] text-[#2D5A27]'
-                      : 'text-[#5C6B61] hover:bg-[#F9F8F6]'
+                  key={item.path}
+                  to={item.path}
+                  data-testid={item.testId}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    isActive(item.path)
+                      ? 'bg-[#1A3626] text-[#FDFDFB] shadow-md shadow-[#1A3626]/20'
+                      : 'text-[#57695D] hover:bg-[#E8E8E3] hover:text-[#1A3626]'
                   }`}
                 >
-                  <BookOpen size={20} weight={isActive('/diseases') ? 'fill' : 'regular'} />
-                  <span>{t('diseases')}</span>
+                  <item.icon className="w-4 h-4" strokeWidth={isActive(item.path) ? 2.5 : 1.5} />
+                  <span>{item.label}</span>
                 </Link>
-              )}
-              {user?.role === 'admin' && (
-                <Link
-                  to="/admin"
-                  data-testid="nav-admin"
-                  className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors ${
-                    isActive('/admin')
-                      ? 'bg-[#E8ECE5] text-[#2D5A27]'
-                      : 'text-[#5C6B61] hover:bg-[#F9F8F6]'
-                  }`}
-                >
-                  <UserGear size={20} weight={isActive('/admin') ? 'fill' : 'regular'} />
-                  <span>{t('admin')}</span>
-                </Link>
-              )}
+              ))}
             </nav>
 
-            {/* Right side */}
+            {/* Right Side */}
             <div className="flex items-center space-x-3">
-              {/* Language Selector */}
-              <div className="relative">
+              {/* Language Toggle */}
+              <div ref={langRef} className="relative">
                 <button
-                  onClick={() => setShowLangMenu(!showLangMenu)}
-                  data-testid="language-toggle"
-                  className="p-2 rounded-lg text-[#5C6B61] hover:bg-[#F9F8F6] transition-colors flex items-center space-x-2"
+                  data-testid="language-toggle-dropdown"
+                  onClick={() => setLangOpen(!langOpen)}
+                  className="flex items-center space-x-1.5 bg-[#E8E8E3] hover:bg-[#839E88]/30 px-3 py-1.5 rounded-full text-sm font-medium text-[#1A3626] transition-all"
                 >
-                  <Translate size={20} />
-                  <span className="text-sm font-medium uppercase">{currentLanguage}</span>
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>{currentLang.short}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${langOpen ? 'rotate-180' : ''}`} />
                 </button>
-                {showLangMenu && (
-                  <div className="absolute right-0 mt-2 w-32 bg-white rounded-lg shadow-lg border border-[#DDE3DA] py-1">
-                    <button
-                      onClick={() => { changeLanguage('en'); setShowLangMenu(false); }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-[#F9F8F6] transition-colors"
-                    >
-                      English
-                    </button>
-                    <button
-                      onClick={() => { changeLanguage('hi'); setShowLangMenu(false); }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-[#F9F8F6] transition-colors"
-                    >
-                      हिन्दी
-                    </button>
-                    <button
-                      onClick={() => { changeLanguage('mr'); setShowLangMenu(false); }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-[#F9F8F6] transition-colors"
-                    >
-                      मराठी
-                    </button>
+                {langOpen && (
+                  <div className="absolute right-0 mt-2 bg-[#FDFDFB] border border-[#1A3626]/10 rounded-xl shadow-xl py-1 min-w-[140px] z-50">
+                    {languages.map(lang => (
+                      <button
+                        key={lang.code}
+                        data-testid={`lang-${lang.code}`}
+                        onClick={() => { i18n.changeLanguage(lang.code); setLangOpen(false); }}
+                        className={`w-full px-4 py-2.5 text-left text-sm flex items-center justify-between transition-colors ${
+                          i18n.language === lang.code ? 'bg-[#1A3626]/5 text-[#1A3626] font-semibold' : 'text-[#57695D] hover:bg-[#E8E8E3]'
+                        }`}
+                      >
+                        <span>{lang.label}</span>
+                        <span className="text-xs text-[#839E88]">{lang.short}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
 
-              {/* User Info & Logout */}
-              <div className="flex items-center space-x-3 border-l border-[#DDE3DA] pl-3">
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-[#1A201C]">{user?.name || user?.username}</p>
-                  <p className="text-xs text-[#5C6B61]">{user?.role}</p>
+              {/* User + Logout */}
+              {user && (
+                <div className="hidden sm:flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-[#839E88]/30 rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold text-[#1A3626]">{user.username?.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <button
+                    data-testid="logout-btn"
+                    onClick={handleLogout}
+                    className="flex items-center space-x-1.5 text-sm text-[#57695D] hover:text-[#C25E4B] transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>{t('logout')}</span>
+                  </button>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  data-testid="logout-button"
-                  className="p-2 rounded-lg text-[#D9534F] hover:bg-[#FDF0EF] transition-colors"
-                  title={t('logout')}
-                >
-                  <SignOut size={20} />
-                </button>
-              </div>
+              )}
+
+              {/* Mobile menu */}
+              <button className="md:hidden p-2 rounded-lg hover:bg-[#E8E8E3]" onClick={() => setMobileOpen(!mobileOpen)}>
+                {mobileOpen ? <X className="w-5 h-5 text-[#1A3626]" /> : <Menu className="w-5 h-5 text-[#1A3626]" />}
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Mobile Nav */}
+        {mobileOpen && (
+          <div className="md:hidden border-t border-[#1A3626]/10 bg-[#FDFDFB] py-3 px-4 space-y-1">
+            {navItems.map(item => (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium ${
+                  isActive(item.path) ? 'bg-[#1A3626] text-[#FDFDFB]' : 'text-[#57695D] hover:bg-[#E8E8E3]'
+                }`}
+              >
+                <item.icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </Link>
+            ))}
+            {user && (
+              <button onClick={handleLogout} className="flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium text-[#C25E4B] hover:bg-[#F5D0C9]/30 w-full">
+                <LogOut className="w-4 h-4" />
+                <span>{t('logout')}</span>
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
